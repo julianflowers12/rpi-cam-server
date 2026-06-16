@@ -86,6 +86,9 @@ class CameraManager:
         self._recording = False
         self.last_clip = None
         self._motion_enabled = False
+        self.motion_area = 1500
+        self.motion_frames_required = 3
+        self.motion_cooldown = 40
 
         self._motion_thread = None
 
@@ -143,6 +146,7 @@ class CameraManager:
             frame = request.make_array("main")
             print("3")
             request.release()
+            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
             print("4")
             cv2.imwrite(str(path), frame)
             print("5")
@@ -249,6 +253,7 @@ class CameraManager:
         print("enabled")
         prev_gray = None
         cool_down_until = 0
+        motion_frame_count = 0
 
         while not self._motion_stop_evt.is_set():
             with self._lock:
@@ -277,7 +282,15 @@ class CameraManager:
                 thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
             )
 
-            motion_detected = any(cv2.contourArea(c) > 1500 for c in contours)
+            motion_detected = any(
+                cv2.contourArea(c) > self.motion_area
+                for c in contours
+            )
+            
+            if motion_detected:
+                motion_frame_count += 1
+            else:
+                motion_frame_count = 0
 
             now = time.time()
             if motion_detected:
@@ -286,7 +299,10 @@ class CameraManager:
                     f"cooldown={cool_down_until:.0f} "
                     f"recording={self._recording}"
                 )
-            if motion_detected and now > cool_down_until:
+            if (
+                motion_frame_count >= self.motion_frames_required
+                and now > cool_down_until
+            ):
                 self.last_motion = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 print("recording")
                 self.motion_triggers += 1
@@ -312,7 +328,7 @@ class CameraManager:
                     cv2.imwrite(str(motion_path), frame)
                     self.last_motion_image = motion_path.name
 
-                cool_down_until = now + 40
+                cool_down_until = now + self.motion_cooldown
                 print(f"NEW_COOLDOWN {cool_down_until:.0f}")                       
                     
                     
@@ -617,6 +633,7 @@ def api_status():
             if f.is_file()
     
     )
+   
     
     disk = shutil.disk_usage(camera.base_dir)
     return jsonify(
@@ -625,6 +642,9 @@ def api_status():
             "recording": camera._recording,
             "motion_enabled": camera._motion_enabled,
             "motion_triggers": camera.motion_triggers,
+            "motion_area": camera.motion_area,
+            "motion_frames_required": camera.motion_frames_required,
+            "motion_cooldown": camera.motion_cooldown,
             "last_motion": camera.last_motion,
             "last_clip": camera.last_clip,
             "last_still": camera.last_still,
