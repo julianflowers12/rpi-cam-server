@@ -1,0 +1,19 @@
+# Media
+media/
+*.jpg
+*.jpeg
+*.mp4
+
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environments
+venv/
+.venv/
+
+# Logs
+*.log
+
+# macOS
+.DS_Store

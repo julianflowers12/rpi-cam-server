@@ -1,0 +1,16 @@
+[Unit]
+Description=Raspberry Pi Camera Web Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=raspberypi6
+WorkingDirectory=/home/raspberypi6/rpi-cam-server/rpi-cam-server
+ExecStart=/usr/bin/python3 /home/raspberypi6/rpi-cam-server/rpi-cam-server/rpi-cam-server.py
+Restart=always
+RestartSec=2
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
