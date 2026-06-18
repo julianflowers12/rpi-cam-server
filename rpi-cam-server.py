@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 import os
 import time
@@ -7,7 +6,7 @@ import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
-
+from PIL import Image
 
 from flask import (
     Flask,
@@ -32,6 +31,52 @@ _boot_ready_evt = Event()
 
 
 # ---------------- Camera Manager ----------------
+
+from PIL import Image
+
+def create_thumbnail(image_path):
+    thumb_dir = image_path.parent / "thumbs"
+    thumb_dir.mkdir(exist_ok=True)
+
+    thumb_path = thumb_dir / image_path.name
+
+    img = Image.open(image_path)
+    img.thumbnail((320, 180))
+    img.save(thumb_path, "JPEG", quality=85)
+
+    return thumb_path
+
+import subprocess
+
+def create_video_thumbnail(video_path):
+
+    thumb_dir = video_path.parent / "thumbs"
+    thumb_dir.mkdir(exist_ok=True)
+
+    thumb_path = (
+        thumb_dir /
+        video_path.with_suffix(".jpg").name
+    )
+
+    try:
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-ss", "5",
+                "-i", str(video_path),
+                "-frames:v", "1",
+                str(thumb_path),
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+
+    except Exception as e:
+        print(f"Video thumbnail error: {e}")
+
+    return thumb_path
 
 class CameraManager:
     """
@@ -149,6 +194,7 @@ class CameraManager:
             frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
             print("4")
             cv2.imwrite(str(path), frame)
+            create_thumbnail(path)
             print("5")
             self.last_still = path.name
             return path
@@ -210,6 +256,8 @@ class CameraManager:
             
             print(f"Recording finished: {path.name}")
             self.last_clip = path.name
+            create_video_thumbnail(path)
+            return path
             #encoder.close()   # release V4L2 encoder device
             #output.close()    # close ffmpeg process
 
@@ -408,6 +456,9 @@ INDEX_HTML = """
       <button onclick="window.location='/media/'">
         View Media
       </button>
+      <button onclick="window.location='/gallery'">
+        Gallery
+      </button>
     </div>
 
     <div id="status"></div>
@@ -586,6 +637,83 @@ def api_capture_still():
     path = camera.capture_still()
     return jsonify({"status": "ok", "file": path.name})
 
+@app.route("/thumbs/<path:filename>")
+def thumbnails(filename):
+    return send_from_directory(
+        camera.base_dir / "thumbs",
+        filename
+    )
+
+@app.route("/api/media")
+def media():
+    files = []
+
+    for f in sorted(
+        camera.base_dir.glob("still_*.jpg"),
+        reverse=True
+    ):
+        files.append({
+            "type": "image",
+            "file": f.name,
+            "thumb": f"/thumbs/{f.name}"
+        })
+
+    return jsonify(files)
+
+@app.route("/gallery")
+def gallery():
+
+    files = sorted(
+        camera.base_dir.glob("still_*.jpg"),
+        reverse=True
+    )
+
+    html = [
+        """
+        <html>
+        <head>
+        <style>
+        body { font-family:sans-serif; margin:20px; }
+        .grid {
+            display:grid;
+            grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+            gap:10px;
+        }
+        img {
+            width:100%;
+            border-radius:8px;
+        }
+        </style>
+        </head>
+        <body>
+        <h1>Gallery</h1>
+        <div class="grid">
+        """
+    ]
+
+    for f in files:
+    
+        ts = f.stem.replace("still_", "")
+    
+        html.append(
+            f"""
+            <div>
+              <a href="/media/{f.name}">
+                <img src="/thumbs/{f.name}">
+              </a>
+              <div style="
+                  font-size:12px;
+                  text-align:center;
+                  margin-top:4px;">
+                {ts}
+              </div>
+            </div>
+            """
+        )
+
+    html.append("</div></body></html>")
+
+    return "".join(html)
 
 @app.route("/api/record_clip", methods=["POST"])
 def api_record_clip():
