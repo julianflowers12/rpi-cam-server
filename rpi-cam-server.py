@@ -131,9 +131,9 @@ class CameraManager:
         self._recording = False
         self.last_clip = None
         self._motion_enabled = False
-        self.motion_area = 1500
-        self.motion_frames_required = 3
-        self.motion_cooldown = 40
+        self.motion_area = 800
+        self.motion_frames_required = 2
+        self.motion_cooldown = 20
 
         self._motion_thread = None
 
