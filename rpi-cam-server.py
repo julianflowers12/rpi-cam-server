@@ -442,7 +442,7 @@ INDEX_HTML = """
     <h1>rpi-cam-server</h1>
 
     <p>
-      Live preview is always on. Stills and 30s clips are saved in
+      Live preview is always on. Stills and  10s clips are saved in
       <code>media/</code> next to this script.
     </p>
 
@@ -664,7 +664,8 @@ def media():
 def gallery():
 
     files = sorted(
-        camera.base_dir.glob("still_*.jpg"),
+        list(camera.base_dir.glob("still_*.jpg")) +
+        list(camera.base_dir.glob("motion_*,jpg")),
         reverse=True
     )
 
@@ -692,8 +693,18 @@ def gallery():
     ]
 
     for f in files:
+
+        if f.name.startswith("motion_"):
+            label = "Motion"
+        else:
+            label = "Still"    
     
-        ts = f.stem.replace("still_", "")
+        ts = (f.stem
+                .replace("still_", "")
+                .replace("motion_", "")
+        )
+                
+        
     
         html.append(
             f"""
@@ -705,6 +716,12 @@ def gallery():
                   font-size:12px;
                   text-align:center;
                   margin-top:4px;">
+                {label}
+              </div>
+
+              <div style="
+                    text-align:center;
+                    font-size:11px">
                 {ts}
               </div>
             </div>
