@@ -375,6 +375,7 @@ class CameraManager:
                 if frame is not None:
                     cv2.imwrite(str(motion_path), frame)
                     self.last_motion_image = motion_path.name
+                    self.create_thumbnail(motion_path)
 
                 cool_down_until = now + self.motion_cooldown
                 print(f"NEW_COOLDOWN {cool_down_until:.0f}")                       
@@ -665,7 +666,8 @@ def gallery():
 
     files = sorted(
         list(camera.base_dir.glob("still_*.jpg")) +
-        list(camera.base_dir.glob("motion_*,jpg")),
+        list(camera.base_dir.glob("motion_*.jpg")),
+        key=lambda p: p.stat().st_mtime,
         reverse=True
     )
 
