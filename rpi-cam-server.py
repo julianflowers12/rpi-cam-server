@@ -664,11 +664,16 @@ def media():
 @app.route("/gallery")
 def gallery():
 
+    return "THIS IS THE NEW GALLERY"
+
     files = sorted(
         list(camera.base_dir.glob("still_*.jpg")) +
         list(camera.base_dir.glob("motion_*,jpg")),
         reverse=True
     )
+
+    print(f"Gallery files: {len(files)}")
+    print([f.name for f in files[:10]])
 
     html = [
         """
