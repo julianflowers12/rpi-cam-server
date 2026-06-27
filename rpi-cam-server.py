@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 import os
 import time
@@ -45,6 +46,15 @@ def create_thumbnail(image_path):
     img.save(thumb_path, "JPEG", quality=85)
 
     return thumb_path
+
+def save_image(image_path, frame):
+    """
+    Save an image and automatically create its thumbnail.
+    """
+    cv2.imwrite(str(image_path), frame)
+    create_thumbnail(image_path)
+    return image_path
+    
 
 import subprocess
 
@@ -193,8 +203,7 @@ class CameraManager:
             request.release()
             frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
             print("4")
-            cv2.imwrite(str(path), frame)
-            create_thumbnail(path)
+            save_image(path, frame)
             print("5")
             self.last_still = path.name
             return path
@@ -373,9 +382,9 @@ class CameraManager:
                     )
                 
                 if frame is not None:
-                    cv2.imwrite(str(motion_path), frame)
+                    save_image(motion_path, frame)
                     self.last_motion_image = motion_path.name
-                    self.create_thumbnail(motion_path)
+
 
                 cool_down_until = now + self.motion_cooldown
                 print(f"NEW_COOLDOWN {cool_down_until:.0f}")                       
@@ -662,78 +671,125 @@ def media():
     return jsonify(files)
 
 @app.route("/gallery")
+@app.route("/gallery")
 def gallery():
 
-    files = sorted(
+    media = sorted(
         list(camera.base_dir.glob("still_*.jpg")) +
-        list(camera.base_dir.glob("motion_*.jpg")),
+        list(camera.base_dir.glob("motion_*.jpg")) +
+        list(camera.base_dir.glob("clip_*.mp4")),
         key=lambda p: p.stat().st_mtime,
         reverse=True
     )
 
-    html = [
-        """
-        <html>
-        <head>
-        <style>
-        body { font-family:sans-serif; margin:20px; }
-        .grid {
-            display:grid;
-            grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
-            gap:10px;
-        }
-        img {
-            width:100%;
-            border-radius:8px;
-        }
-        </style>
-        </head>
-        <body>
-        <h1>Gallery</h1>
-        <div class="grid">
-        """
-    ]
+    html = ["""
+    <html>
+    <head>
+    <style>
 
-    for f in files:
+    body{
+        font-family:sans-serif;
+        margin:20px;
+        background:#222;
+        color:white;
+    }
 
-        if f.name.startswith("motion_"):
-            label = "Motion"
+    h1{
+        margin-bottom:20px;
+    }
+
+    .grid{
+        display:grid;
+        grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
+        gap:16px;
+    }
+
+    .card{
+        background:#333;
+        border-radius:10px;
+        padding:10px;
+    }
+
+    img{
+        width:100%;
+        border-radius:8px;
+    }
+
+    .label{
+        font-weight:bold;
+        margin-top:8px;
+        text-align:center;
+    }
+
+    .time{
+        font-size:12px;
+        color:#ccc;
+        text-align:center;
+        margin-top:4px;
+    }
+
+    </style>
+    </head>
+
+    <body>
+
+    <h1>Gallery</h1>
+
+    <div class="grid">
+    """]
+
+    for f in media:
+
+        if f.name.startswith("still_"):
+            label = "📷 Still"
+            thumb = f"/thumbs/{f.name}"
+            link = f"/media/{f.name}"
+
+        elif f.name.startswith("motion_"):
+            label = "🚶 Motion"
+            thumb = f"/thumbs/{f.name}"
+            link = f"/media/{f.name}"
+
+        elif f.name.startswith("clip_"):
+            label = "🎥 Clip"
+            thumb = f"/thumbs/{f.stem}.jpg"
+            link = f"/media/{f.name}"
+
         else:
-            label = "Still"    
-    
-        ts = (f.stem
-                .replace("still_", "")
-                .replace("motion_", "")
+            continue
+
+        ts = (
+            f.stem
+             .replace("still_", "")
+             .replace("motion_", "")
+             .replace("clip_", "")
         )
-                
-        
-    
-        html.append(
-            f"""
-            <div>
-              <a href="/media/{f.name}">
-                <img src="/thumbs/{f.name}">
-              </a>
-              <div style="
-                  font-size:12px;
-                  text-align:center;
-                  margin-top:4px;">
+
+        html.append(f"""
+        <div class="card">
+
+            <a href="{link}">
+                <img src="{thumb}">
+            </a>
+
+            <div class="label">
                 {label}
-              </div>
-
-              <div style="
-                    text-align:center;
-                    font-size:11px">
-                {ts}
-              </div>
             </div>
-            """
-        )
 
-    html.append("</div></body></html>")
+            <div class="time">
+                {ts}
+            </div>
+
+        </div>
+        """)
+
+    html.append("""
+    </div>
+    </body>
+    </html>
+    """)
 
     return "".join(html)
-
 @app.route("/api/record_clip", methods=["POST"])
 def api_record_clip():
     body = request.get_json(silent=True) or {}
