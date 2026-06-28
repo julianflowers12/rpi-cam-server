@@ -1,10 +1,8 @@
-
 #!/usr/bin/env python3
 import os
 import time
 import shutil
 import threading
-from datetime import datetime
 from pathlib import Path
 from typing import Optional
 from PIL import Image
@@ -17,6 +15,16 @@ from flask import (
     send_from_directory,
     Response,
 )
+
+from datetime import datetime
+
+def format_timestamp(ts):
+    dt = datetime.strptime(ts, "%Y%m%d_%H%M%S")
+    return (
+        dt.strftime("%d %b %Y"),
+        dt.strftime("%H:%M:%S")
+    )
+
 
 from picamera2 import Picamera2
 from picamera2.encoders import H264Encoder
@@ -670,7 +678,7 @@ def media():
 
     return jsonify(files)
 
-@app.route("/gallery")
+
 @app.route("/gallery")
 def gallery():
 
@@ -765,6 +773,8 @@ def gallery():
              .replace("clip_", "")
         )
 
+        date_text, time_text = format_timestamp(ts)
+
         html.append(f"""
         <div class="card">
 
@@ -777,7 +787,8 @@ def gallery():
             </div>
 
             <div class="time">
-                {ts}
+               {date_text}<br>
+               {time_text}
             </div>
 
         </div>
