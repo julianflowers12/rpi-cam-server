@@ -54,6 +54,13 @@ def save_image(image_path, frame):
     cv2.imwrite(str(image_path), frame)
     create_thumbnail(image_path)
     return image_path
+
+def format_timestamp(ts):
+    dt = datetime.strptime(ts, "%Y%m%d_%H%M%S")
+    return (
+        dt.strftime("%d %b %Y"),
+        dt.strftime("%H:%M:%S")
+    )
     
 
 import subprocess
@@ -671,7 +678,6 @@ def media():
     return jsonify(files)
 
 @app.route("/gallery")
-@app.route("/gallery")
 def gallery():
 
     media = sorted(
@@ -765,6 +771,9 @@ def gallery():
              .replace("clip_", "")
         )
 
+        date_text, time_text = format_timestamp(ts)
+
+
         html.append(f"""
         <div class="card">
 
@@ -777,7 +786,8 @@ def gallery():
             </div>
 
             <div class="time">
-                {ts}
+                {date_text}<br>
+                {time_text}
             </div>
 
         </div>
