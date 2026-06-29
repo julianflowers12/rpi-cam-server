@@ -687,7 +687,15 @@ def build_media():
         reverse=True
     )
 
+def media_timestamp(f):
 
+    return (
+        f.stem
+         .replace("still_", "")
+         .replace("motion_", "")
+         .replace("clip_", "")
+    )
+    
 @app.route("/gallery")
 
 
@@ -697,24 +705,15 @@ def gallery():
 
     selected_date = request.args.get("date", "")
     available_dates = sorted({
-        (
-            f.stem
-             .replace("still_", "")
-             .replace("motion_", "")
-             .replace("clip_", "")
-        )[:8]
+        media_timestamp(f)[:8]
         for f in media
+            
     }, reverse=True)
 
     if selected_date:
         media = [
             f for f in media
-            if (
-                f.stem
-                 .replace("still_", "")
-                 .replace("motion_", "")
-                 .replace("clip_", "")
-            ).startswith(selected_date)
+            if media_timestamp(f).startswith(selected_date)
         ]
 
         
@@ -807,12 +806,7 @@ def gallery():
         else:
             continue
 
-        ts = (
-            f.stem
-             .replace("still_", "")
-             .replace("motion_", "")
-             .replace("clip_", "")
-        )
+        ts = media_timestamp(f)
 
         date_text, time_text = format_timestamp(ts)
 
@@ -843,6 +837,7 @@ def gallery():
     """)
 
     return "".join(html)
+    
 @app.route("/api/record_clip", methods=["POST"])
 def api_record_clip():
     body = request.get_json(silent=True) or {}
