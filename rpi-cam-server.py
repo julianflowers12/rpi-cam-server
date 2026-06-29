@@ -688,6 +688,30 @@ def gallery():
         reverse=True
     )
 
+    selected_date = request.args.get("date", "")
+    available_dates = sorted({
+        (
+            f.stem
+             .replace("still_", "")
+             .replace("motion_", "")
+             .replace("clip_", "")
+        )[:8]
+        for f in media
+    }, reverse=True)
+
+    if selected_date:
+        media = [
+            f for f in media
+            if (
+                f.stem
+                 .replace("still_", "")
+                 .replace("motion_", "")
+                 .replace("clip_", "")
+            ).startswith(selected_date)
+        ]
+
+        
+
     html = ["""
     <html>
     <head>
@@ -739,8 +763,20 @@ def gallery():
 
     <body>
 
-    <h1>Gallery</h1>
-
+    <h1>Wildlife Gallery</h1>
+    
+    <form method="get" style="margin-bottom:20px">
+    
+    <label><b>Date:</b></label>
+    
+    <select name="date" onchange="this.form.submit()">
+    
+    <option value="">All dates</option>
+    
+    </select>
+    
+    </form>
+    
     <div class="grid">
     """]
 
