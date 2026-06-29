@@ -677,16 +677,23 @@ def media():
 
     return jsonify(files)
 
-@app.route("/gallery")
-def gallery():
+def build_media():
 
-    media = sorted(
+    return sorted(
         list(camera.base_dir.glob("still_*.jpg")) +
         list(camera.base_dir.glob("motion_*.jpg")) +
         list(camera.base_dir.glob("clip_*.mp4")),
         key=lambda p: p.stat().st_mtime,
         reverse=True
     )
+
+
+@app.route("/gallery")
+
+
+def gallery():
+
+    media = build_media()
 
     selected_date = request.args.get("date", "")
     available_dates = sorted({
