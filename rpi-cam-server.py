@@ -695,6 +695,45 @@ def media_timestamp(f):
          .replace("motion_", "")
          .replace("clip_", "")
     )
+
+def build_events():
+
+    events = []
+
+    # stills
+
+    for f in camera.base_dir.glob("still_*.jpg"):
+
+        events.append({
+            "type": "still",
+            "timestamp": media_timestamp(f),
+            "image": f,
+            "clip": None,
+            "mtime": f.stat().st_mtime,
+        })
+
+    # motion
+
+    for f in camera.base_dir.glob("motion_*.jpg"):
+
+        ts = media_timestamp(f)
+
+        clip = camera.base_dir / f"clip_{ts}.mp4"
+
+        events.append({
+            "type": "motion",
+            "timestamp": ts,
+            "image": f,
+            "clip": clip if clip.exists() else None,
+            "mtime": f.stat().st_mtime,
+        })
+
+    events.sort(
+        key=lambda e: e["mtime"],
+        reverse=True
+    )
+
+    return events
     
 @app.route("/gallery")
 
