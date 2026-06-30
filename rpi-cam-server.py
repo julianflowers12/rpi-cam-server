@@ -741,7 +741,13 @@ def build_events():
 def gallery():
 
     media = build_media()
-
+    events = build_events()
+    print("******** GALLERY CALLED ********")
+    app.logger.warning(
+        "MEDIA=%d EVENTS=%d",
+        len(media),
+        len(events)
+    )
     selected_date = request.args.get("date", "")
     available_dates = sorted({
         media_timestamp(f)[:8]
