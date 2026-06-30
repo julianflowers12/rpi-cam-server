@@ -131,7 +131,9 @@ class CameraManager:
     # state
 
         self._lock = threading.Lock()
-        self.last_still = None
+        self.last_still = None 
+        self._last_frame_time = time.time()
+
         self._preview_frame = None
         self.last_motion_image = None
         self._preview_running = False
@@ -171,9 +173,7 @@ class CameraManager:
 
         while self._preview_running:
             try:
-                print("Before capture")
                 yuv = self.picam2.capture_array("lores")  
-                print("After capture") 
 
                 frame = cv2.cvtColor(
                     yuv,
@@ -182,7 +182,14 @@ class CameraManager:
 
                 with self._lock:
                     self._preview_frame = frame.copy()
+                    
                 self._frame_counter += 1
+                
+                if self._frame_counter % 100 == 0:
+                    print(f"Frames: {self._frame_counter}")
+
+                self._last_frame_time = time.time()
+                time.sleep(0.05)
 
             except Exception as e:
                 print(f"Preview error: {repr(e)}")
@@ -859,6 +866,11 @@ def api_status():
             "media_size_mb": round(media_size / 1024 / 1024, 1),
             
             "disk_free_gb": round(disk.free / 1024 / 1024 / 1024, 1),
+
+            "last_frame_age": round(
+                time.time() - camera._last_frame_time,
+                1
+            ),
         }
     )    
 
