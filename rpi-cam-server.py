@@ -844,28 +844,30 @@ def gallery():
     <div class="grid">
     """)
     
-    for f in media:
-
-        if f.name.startswith("still_"):
+    for event in events:
+    
+        image = event["image"]
+        clip = event["clip"]
+    
+        if event["type"] == "still":
+    
             label = "📷 Still"
-            thumb = f"/thumbs/{f.name}"
-            link = f"/media/{f.name}"
-
-        elif f.name.startswith("motion_"):
-            label = "🚶 Motion"
-            thumb = f"/thumbs/{f.name}"
-            link = f"/media/{f.name}"
-
-        elif f.name.startswith("clip_"):
-            label = "🎥 Clip"
-            thumb = f"/thumbs/{f.stem}.jpg"
-            link = f"/media/{f.name}"
-
+            thumb = f"/thumbs/{image.name}"
+            link = f"/media/{image.name}"
+    
         else:
-            continue
-
-        ts = media_timestamp(f)
-
+    
+            label = "🚶 Motion"
+    
+            thumb = f"/thumbs/{image.name}"
+    
+            if clip:
+                link = f"/media/{clip.name}"
+            else:
+                link = f"/media/{image.name}"
+    
+        ts = event["timestamp"]
+    
         date_text, time_text = format_timestamp(ts)
 
 
