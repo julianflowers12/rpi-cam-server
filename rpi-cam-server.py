@@ -769,23 +769,36 @@ def gallery():
 
     <body>
 
+
     <h1>Wildlife Gallery</h1>
+    """]
     
-    <form method="get" style="margin-bottom:20px">
-    
-    <label><b>Date:</b></label>
-    
+    html.append("""
+    <form method="get" style="margin-bottom:20px;">
     <select name="date" onchange="this.form.submit()">
-    
     <option value="">All dates</option>
+    """)
     
+    for d in available_dates:
+    
+        label = datetime.strptime(
+            d,
+            "%Y%m%d"
+        ).strftime("%d %b %Y")
+    
+        selected = "selected" if d == selected_date else ""
+    
+        html.append(
+            f'<option value="{d}" {selected}>{label}</option>'
+        )
+    
+    html.append("""
     </select>
-    
     </form>
     
     <div class="grid">
-    """]
-
+    """)
+    
     for f in media:
 
         if f.name.startswith("still_"):
