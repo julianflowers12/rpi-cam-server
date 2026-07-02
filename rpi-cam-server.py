@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 import os
 import time
@@ -142,6 +141,7 @@ class CameraManager:
 
         self._recording = False
         self.last_clip = None
+        self._clip_counter = 0
         self._motion_enabled = False
         self.motion_area = 800
         self.motion_frames_required = 2
@@ -182,13 +182,24 @@ class CameraManager:
 
                 with self._lock:
                     self._preview_frame = frame.copy()
+
+
+                uptime = round(float(open("/proc/uptime").read().split()[0]))     
                     
                 self._frame_counter += 1
-                
-                if self._frame_counter % 100 == 0:
-                    print(f"Frames: {self._frame_counter}")
-
                 self._last_frame_time = time.time()
+                if self._frame_counter % 6000 == 0:
+                    app.logger.warning(
+                        "Health: frames=%d clips=%d age=%.1fs recording = %s motion = %s",
+                        uptime,
+                        self._frame_counter,
+                        self._clip_counter,
+                        time.time() - self._last_frame_time,
+                        self._recording, 
+                        self._motion_enabld,
+                        )
+
+               
                 time.sleep(0.05)
 
             except Exception as e:
@@ -198,25 +209,47 @@ class CameraManager:
     # ---------- Stills (from preview, no pipeline stop) ----------
 
     def capture_still(self) -> Path:
+    
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         path = self.base_dir / f"still_{ts}.jpg"
-
+    
+        request = None
+    
         try:
-            print("1")
+    
+            app.logger.warning("STILL: capture_request")
+    
             request = self.picam2.capture_request()
-            print("2")
+    
+            app.logger.warning("STILL: make_array")
+    
             frame = request.make_array("main")
-            print("3")
-            request.release()
-            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-            print("4")
+    
+            frame = cv2.cvtColor(
+                frame,
+                cv2.COLOR_RGB2BGR
+            )
+    
             save_image(path, frame)
-            print("5")
+    
             self.last_still = path.name
+    
+            app.logger.warning("STILL: complete")
+    
             return path
-
+    
         except Exception as e:
-            raise RuntimeError(f"Unable to capture still frame: {e}")
+    
+            app.logger.exception("STILL FAILED")
+    
+            raise RuntimeError(
+                f"Unable to capture still frame: {e}"
+            )
+    
+        finally:
+    
+            if request is not None:
+                request.release()
     # ---------- 30 s clip ----------
 
     def start_recording_async(self, duration=30):
@@ -233,65 +266,126 @@ class CameraManager:
         Record a clip of `duration` seconds to MP4 via ffmpeg.
         Does not stop the preview.
         """
+
         with self._record_lock:
-            print(f"ENTER record_clip: _recording={self._recording}")
-        
+            app.logger.warning(
+                "RECORD: enter (_recording=%s)",
+                self._recording
+            )
+
             if self._recording:
-                print("ABORT record_clip: already recording")
+                app.logger.warning(
+                    "RECORD: already recording - abort"
+                )
                 return None
-        
+
             self._recording = True
-            print("SET _recording=True")
+
+            app.logger.warning("RECORD: recording=True")
 
         try:
+
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
             path = self.base_dir / f"clip_{ts}.mp4"
-            print(f"Recording started: {path.name} duration={duration}")
 
-            encoder = H264Encoder(bitrate=5_000_000)
-            output = FfmpegOutput(str(path))
+            app.logger.warning(
+                "RECORD: preparing %s",
+                path.name
+            )   
 
-        
-            self.picam2.start_recording(encoder, output)
-            
+            encoder = H264Encoder(
+                bitrate=5_000_000
+            )
+
+            output = FfmpegOutput(
+                str(path)
+            )
+
+            app.logger.warning(
+                "RECORD: start_recording()"
+            )
+
+            self.picam2.start_recording(
+                encoder,
+                output
+            )
+
+            app.logger.warning(
+                "RECORD: start_recording() returned"
+            )
+
             time.sleep(duration)
-            
-            print("STOP_RECORDING_START")
-            self.picam2.stop_recording()
-            print("STOP_RECORDING_DONE")
-            
-            print("CAMERA_STOP_START")
-            self.picam2.stop()
-            print("CAMERA_STOP_DONE")
-            
-            time.sleep(1)
-            
-            print("CAMERA_START_START")
-            self.picam2.start()
-            print("CAMERA_START_DONE")
-            
-            print(f"Recording finished: {path.name}")
-            self.last_clip = path.name
-            create_video_thumbnail(path)
-            return path
-            #encoder.close()   # release V4L2 encoder device
-            #output.close()    # close ffmpeg process
 
-            
-        except Exception as e:
-            print(f"Recording error: {e}")
-            
-              #  print("Camera restarted")
+            app.logger.warning(
+                "RECORD: duration complete"
+            )
+
+            app.logger.warning(
+                "RECORD: stop_recording()"
+            )
+
+            self.picam2.stop_recording()
+
+            app.logger.warning(
+                "RECORD: stop_recording() returned"
+            )
+
+            app.logger.warning(
+                "RECORD: camera.stop()"
+            )
+
+            self.picam2.stop()
+
+            app.logger.warning(
+                "RECORD: camera.stop() returned"
+            )
+
+            time.sleep(1)
+
+            app.logger.warning(
+                "RECORD: camera.start()"
+            )
+
+            self.picam2.start()
+
+            app.logger.warning(
+                "RECORD: camera.start() returned"
+            )
+
+            self.last_clip = path.name
+            self._clip_counter += 1
+
+            app.logger.warning(
+                "RECORD: create thumbnail"
+            )
+
+            create_video_thumbnail(path)
+
+            app.logger.warning(
+                "RECORD: complete"
+            )
+
+            return path
+
+        except Exception:
+
+            app.logger.exception(
+                "RECORD FAILED"
+            )
+            raise
 
         finally:
-            print("FINALLY reached")
-        
+
+            app.logger.warning(
+                "RECORD: finally"
+            )   
+
             with self._record_lock:
                 self._recording = False
-                print("SET _recording=False")
 
-
-
+            app.logger.warning(
+                "RECORD: recording=False"
+            )
 
 
 
@@ -859,7 +953,8 @@ def api_status():
             "last_clip": camera.last_clip,
             "last_still": camera.last_still,
             "last_motion_image": camera.last_motion_image,
-
+            "frame_counter": camera._frame_counter,
+            "clip_counter": camera._clip_counter,
             "image_count": images,
             
             "video_count": videos,
