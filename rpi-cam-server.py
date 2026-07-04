@@ -8,6 +8,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 from PIL import Image
+from collections import OrderedDict
+
 
 from flask import (
     Flask,
@@ -16,6 +18,7 @@ from flask import (
     render_template_string,
     send_from_directory,
     Response,
+    redirect,
 )
 
 from picamera2 import Picamera2
@@ -709,7 +712,6 @@ def build_events():
             "timestamp": media_timestamp(f),
             "image": f,
             "clip": None,
-            "mtime": f.stat().st_mtime,
         })
 
     # motion
@@ -725,11 +727,10 @@ def build_events():
             "timestamp": ts,
             "image": f,
             "clip": clip if clip.exists() else None,
-            "mtime": f.stat().st_mtime,
         })
 
     events.sort(
-        key=lambda e: e["mtime"],
+        key=lambda e: e["timestamp"],
         reverse=True
     )
 
@@ -756,10 +757,14 @@ def gallery():
     }, reverse=True)
 
     if selected_date:
-        media = [
-            f for f in media
-            if media_timestamp(f).startswith(selected_date)
-        ]
+    
+        events = [
+    
+            e for e in events
+    
+            if e["timestamp"].startswith(selected_date)
+    
+        ]       
 
         
 
@@ -862,7 +867,7 @@ def gallery():
             thumb = f"/thumbs/{image.name}"
     
             if clip:
-                link = f"/media/{clip.name}"
+                link = f"/play/{clip.name}"
             else:
                 link = f"/media/{image.name}"
     
@@ -873,23 +878,44 @@ def gallery():
 
         html.append(f"""
         <div class="card">
-
+        
             <a href="{link}">
                 <img src="{thumb}">
             </a>
-
+        
             <div class="label">
                 {label}
             </div>
-
+        
             <div class="time">
                 {date_text}<br>
                 {time_text}
             </div>
-
+        
+            <form action="/delete/{image.name}"
+                  method="post"
+                  onsubmit="return confirm('Delete this item?');">
+        
+                <button type="submit"
+                        style="
+                            width:100%;
+                            margin-top:10px;
+                            padding:8px;
+                            background:#b00020;
+                            color:white;
+                            border:none;
+                            border-radius:6px;
+                            cursor:pointer;">
+        
+                    🗑 Delete
+        
+                </button>
+        
+            </form>
+        
         </div>
         """)
-
+        
     html.append("""
     </div>
     </body>
@@ -897,6 +923,58 @@ def gallery():
     """)
 
     return "".join(html)
+
+@app.route("/play/<path:filename>")
+def play_video(filename):
+
+    return f"""
+    <html>
+    <head>
+
+    <style>
+
+    body {{
+        background:#222;
+        color:white;
+        font-family:sans-serif;
+        text-align:center;
+        margin:20px;
+    }}
+
+    video {{
+        width:95%;
+        max-width:900px;
+        border-radius:10px;
+        background:black;
+    }}
+
+    a {{
+        color:#6cf;
+        text-decoration:none;
+        font-size:18px;
+    }}
+
+    </style>
+
+    </head>
+
+    <body>
+
+    <h2>{filename}</h2>
+
+    <video controls autoplay>
+
+        <source src="/media/{filename}" type="video/mp4">
+
+    </video>
+
+    <br><br>
+
+    <a href="/gallery">← Back to gallery</a>
+
+    </body>
+    </html>
+    """    
     
 @app.route("/api/record_clip", methods=["POST"])
 def api_record_clip():
@@ -926,6 +1004,49 @@ def api_motion():
 @app.route("/media/<path:filename>")
 def media_file(filename):
     return send_from_directory(camera.base_dir, filename)
+
+@app.route("/delete/<filename>", methods=["POST"])
+def delete_media(filename):
+
+    path = camera.base_dir / filename
+
+    if not path.exists():
+        abort(404)
+
+    thumbs_dir = camera.base_dir / "thumbs"    
+
+    # Delete matching clip if this is a motion image
+    if filename.startswith("motion_"):
+
+        ts = media_timestamp(path)
+
+        clip = camera.base_dir / f"clip_{ts}.mp4"
+
+        motion_thumb = thumbs_dir / filename
+        
+        if motion_thumb.exists():
+        
+            motion_thumb.unlink()
+        
+        clip_thumb = thumbs_dir / f"clip_{ts}.jpg"
+        
+        if clip_thumb.exists():
+            clip_thumb.unlink()
+
+        if clip.exists():
+            clip.unlink()
+
+        elif filename.startswith("still_"):
+        
+            still_thumb = thumbs_dir / filename
+        
+            if still_thumb.exists():
+        
+                still_thumb.unlink()
+    path.unlink()
+
+    return redirect("/gallery")
+        
 
 
 @app.route("/api/status")
