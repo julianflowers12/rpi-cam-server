@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 import os
 import time
@@ -160,6 +159,32 @@ class CameraManager:
 
         self.last_motion = None
         self._motion_stop_evt = threading.Event()
+
+        # Recover latest media after a reboot
+        
+        stills = sorted(
+            self.base_dir.glob("still_*.jpg"),
+            reverse=True
+        )
+        
+        motions = sorted(
+            self.base_dir.glob("motion_*.jpg"),
+            reverse=True
+        )
+        
+        clips = sorted(
+            self.base_dir.glob("clip_*.mp4"),
+            reverse=True
+        )
+        
+        if stills:
+            self.last_still = stills[0]
+        
+        if motions:
+            self.last_motion_image = motions[0]
+        
+        if clips:
+            self.last_clip = clips[0]
 
         self.picam2.start()
 
@@ -1185,10 +1210,20 @@ def api_status():
             "motion_frames_required": camera.motion_frames_required,
             "motion_cooldown": camera.motion_cooldown,
             "last_motion": camera.last_motion,
-            "last_clip": camera.last_clip,
-            "last_still": camera.last_still,
-            "last_motion_image": camera.last_motion_image,
-
+            "last_still": (
+                camera.last_still.name
+                if camera.last_still else None
+            ),
+            
+            "last_motion_image": (
+                camera.last_motion_image.name
+                if camera.last_motion_image else None
+            ),
+            
+            "last_clip": (
+                camera.last_clip.name
+                if camera.last_clip else None
+            ),
             "image_count": images,
             
             "video_count": videos,
@@ -1233,6 +1268,31 @@ def snapshot():
         jpeg.tobytes(),
         mimetype="image/jpeg"
     )
+
+
+@app.route("/media/latest/still")
+def latest_still():
+
+    if camera.last_still is None:
+        abort(404)
+
+    return send_from_directory(
+        camera.base_dir,
+        camera.last_still.name
+    )
+
+
+@app.route("/media/latest/motion")
+def latest_motion():
+
+    if camera.last_motion_image is None:
+        abort(404)
+
+    return send_from_directory(
+        camera.base_dir,
+        camera.last_motion_image.name
+    )
+
 
 @app.route("/media/")
 def media_index():
