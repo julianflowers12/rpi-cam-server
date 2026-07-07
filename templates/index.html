@@ -1,7 +1,31 @@
 {% extends "base.html" %}
+
 {% block content %}
 
 <h2>Camera Dashboard</h2>
+
+<div class="dashboard-images">
+
+    <div class="card">
+
+        <h3>Last Still</h3>
+
+        <img id="last-still"
+             src="/media/latest/still">
+
+    </div>
+
+    <div class="card">
+
+        <h3>Last Motion</h3>
+
+        <img id="last-motion"
+             src="/media/latest/motion">
+
+    </div>
+
+</div>
+
 
 <div class="dashboard">
 
@@ -12,65 +36,33 @@
 
     <div class="card">
         <h3>Images</h3>
-        <p id="image-count">0</p>
+        <p id="image-count">-</p>
     </div>
 
     <div class="card">
         <h3>Videos</h3>
-        <p id="video-count">0</p>
+        <p id="video-count">-</p>
     </div>
 
     <div class="card">
-        <h3>Motion Events</h3>
-        <p id="motion-count">0</p>
+        <h3>Motion</h3>
+        <p id="motion-count">-</p>
     </div>
 
     <div class="card">
         <h3>Disk Free</h3>
-        <p id="disk-free">--</p>
+        <p id="disk-free">-</p>
     </div>
 
     <div class="card">
         <h3>Media Size</h3>
-        <p id="media-size">--</p>
+        <p id="media-size">-</p>
     </div>
 
 </div>
 
-<script>
-
-async function updateStatus(){
-
-    const response = await fetch("/api/status");
-
-    const data = await response.json();
-
-    document.getElementById("camera-status").textContent =
-        data.boot.ready ? "🟢 Online" : "🔴 Starting";
-
-    document.getElementById("image-count").textContent =
-        data.image_count;
-
-    document.getElementById("video-count").textContent =
-        data.video_count;
-
-    document.getElementById("motion-count").textContent =
-        data.motion_triggers;
-
-    document.getElementById("disk-free").textContent =
-        data.disk_free_gb + " GB";
-
-    document.getElementById("media-size").textContent =
-        data.media_size_mb + " MB";
-
-}
-
-updateStatus();
-
-setInterval(updateStatus,3000);
-
+<script src="{{ url_for('static',
+                        filename='js/dashboard.js') }}">
 </script>
 
 {% endblock %}
-
-

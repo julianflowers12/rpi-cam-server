@@ -6,6 +6,22 @@
 
 <img src="/stream.mjpg">
 
+<div class="card">
+
+    <h3>Status</h3>
+
+    <p>
+        Motion:
+        <span id="motion-status">Loading...</span>
+    </p>
+
+    <p>
+        Recording:
+        <span id="recording-status">Loading...</span>
+    </p>
+
+</div>
+
 <br><br>
 
 <button onclick="captureStill()">
@@ -16,11 +32,15 @@
 🎥 Record Clip
 </button>
 
-<button onclick="toggleMotion()">
+<button id="motion-button"  onclick="toggleMotion()">
 🚨 Motion
 </button>
 
+
+
 <script>
+
+"use strict";
 
 function captureStill(){
 
@@ -48,13 +68,64 @@ function recordClip(){
 
 }
 
-function toggleMotion(){
+async function toggleMotion(){
 
-    fetch("/api/motion",{
-        method:"POST"
+    const response = await fetch("/api/status");
+    const status = await response.json();
+
+    const mode = status.motion_enabled ? "off" : "on";
+
+    await fetch("/api/motion", {
+
+        method: "POST",
+
+        headers: {
+            "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify({
+            mode: mode
+        })
+
     });
 
+    updatePreviewStatus();
+
 }
+
+async function updatePreviewStatus(){
+
+	console.log("Updating preview status");
+
+    try{
+
+        const response = await fetch("/api/status");
+        console.log("HTTP", response.status);
+		const data = await response.json();
+		console.log(data);
+        document.getElementById("motion-status").textContent =
+            data.motion_enabled ? "🟢 Enabled" : "⚪ Disabled";
+
+        document.getElementById("recording-status").textContent =
+            data.recording ? "🔴 Recording" : "⚪ Idle";
+
+        document.getElementById("motion-button").textContent =
+            data.motion_enabled ?
+                "🚨 Disable Motion" :
+                "🚨 Enable Motion";
+
+    }
+    catch(err){
+
+        console.error(err);
+
+    }
+
+}
+
+updatePreviewStatus();
+
+setInterval(updatePreviewStatus,2000);
 
 </script>
 
