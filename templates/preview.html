@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h2>Live Preview</h2>
+
+<img src="/stream.mjpg">
+
+<br><br>
+
+<button onclick="captureStill()">
+📷 Capture Still
+</button>
+
+<button onclick="recordClip()">
+🎥 Record Clip
+</button>
+
+<button onclick="toggleMotion()">
+🚨 Motion
+</button>
+
+<script>
+
+function captureStill(){
+
+    fetch("/api/capture_still",{
+        method:"POST"
+    });
+
+}
+
+function recordClip(){
+
+    fetch("/api/record_clip",{
+
+        method:"POST",
+
+        headers:{
+            "Content-Type":"application/json"
+        },
+
+        body:JSON.stringify({
+            duration:30
+        })
+
+    });
+
+}
+
+function toggleMotion(){
+
+    fetch("/api/motion",{
+        method:"POST"
+    });
+
+}
+
+</script>
+
+{% endblock %}

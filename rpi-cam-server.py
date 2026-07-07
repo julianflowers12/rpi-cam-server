@@ -19,6 +19,7 @@ from flask import (
     send_from_directory,
     Response,
     redirect,
+    render_template
 )
 
 from picamera2 import Picamera2
@@ -181,9 +182,7 @@ class CameraManager:
 
         while self._preview_running:
             try:
-                print("Before capture")
                 yuv = self.picam2.capture_array("lores")  
-                print("After capture") 
 
                 frame = cv2.cvtColor(
                     yuv,
@@ -197,6 +196,37 @@ class CameraManager:
             except Exception as e:
                 print(f"Preview error: {repr(e)}")
                 time.sleep(1)
+
+    def mjpeg_generator(self):
+        while True:
+            with self._lock:
+                if self._preview_frame is None:
+                    frame = None
+                else:
+                    frame = self._preview_frame.copy()
+    
+            if frame is None:
+                time.sleep(0.05)
+                continue
+    
+            ok, jpeg = cv2.imencode(
+                ".jpg",
+                frame,
+                [int(cv2.IMWRITE_JPEG_QUALITY), 80]
+            )
+    
+            if not ok:
+                continue
+    
+            yield (
+                b"--frame\r\n"
+                b"Content-Type: image/jpeg\r\n\r\n"
+                + jpeg.tobytes()
+                + b"\r\n"
+            )
+    
+            time.sleep(0.03)      # ~30 fps
+                
 
     # ---------- Stills (from preview, no pipeline stop) ----------
 
@@ -648,14 +678,35 @@ INDEX_HTML = """
 
 @app.route("/")
 def index():
-    return render_template_string(INDEX_HTML)
+    return render_template(
+        "index.html",
+        title="Wildlife Camera"
+    )
 
+    
+@app.route("/preview")
+def preview():
+    return render_template(
+        "preview.html",
+        title="Live Preview"
+    )
 
 
 @app.route("/api/capture_still", methods=["POST"])
 def api_capture_still():
     path = camera.capture_still()
     return jsonify({"status": "ok", "file": path.name})
+
+
+@app.route("/stream.mjpg")
+def stream_mjpeg():
+    return Response(
+        camera.mjpeg_generator(),
+        mimetype="multipart/x-mixed-replace; boundary=frame",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate"
+        },
+    )
 
 @app.route("/thumbs/<path:filename>")
 def thumbnails(filename):
@@ -706,6 +757,7 @@ def build_events():
     # stills
 
     for f in camera.base_dir.glob("still_*.jpg"):
+    
 
         events.append({
             "type": "still",
@@ -845,6 +897,30 @@ def gallery():
     html.append("""
     </select>
     </form>
+    <form method="post" action="/delete-selected">
+
+    <label>
+    <input type="checkbox"
+           onclick="toggleAll(this)">
+    Select All
+    </label>
+    
+    <script>
+    
+    function toggleAll(source){
+    
+        let boxes =
+            document.getElementsByName("selected");
+    
+        for(let i=0;i<boxes.length;i++){
+    
+            boxes[i].checked = source.checked;
+    
+        }
+    
+    }
+    
+    </script>
     
     <div class="grid">
     """)
@@ -878,7 +954,15 @@ def gallery():
 
         html.append(f"""
         <div class="card">
-        
+
+        <form method="post" action = "/delete-selected">
+
+        <input
+            type="checkbox"
+            namd="selected"
+            value="{event["image"].name}"
+            style="transform:scale(1.5);margin-bottom:10px;">
+            
             <a href="{link}">
                 <img src="{thumb}">
             </a>
@@ -914,6 +998,29 @@ def gallery():
             </form>
         
         </div>
+        
+        <br>
+        
+        <button
+            type="submit"
+            style="
+                padding:12px 24px;
+                font-size:16px;
+                background:#c33;
+                color:white;
+                border:none;
+                border-radius:8px;
+                cursor:pointer;
+            "
+            onclick="return confirm('Delete selected items?');">
+        
+        🗑 Delete Selected
+        
+        </button>
+        
+        </form>
+
+        
         """)
         
     html.append("""

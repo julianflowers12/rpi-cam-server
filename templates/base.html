@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <title>{{ title }}</title>
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1">
+
+    <style>
+
+        *{
+            box-sizing:border-box;
+        }
+
+        body{
+
+            margin:0;
+            font-family:Arial,sans-serif;
+            background:#181818;
+            color:white;
+
+        }
+
+        header{
+
+            background:#222;
+            padding:16px 24px;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+
+        }
+
+        header h1{
+
+            margin:0;
+            font-size:22px;
+
+        }
+
+        nav a{
+
+            color:white;
+            text-decoration:none;
+            margin-left:18px;
+            font-weight:bold;
+
+        }
+
+        nav a:hover{
+
+            color:#4CAF50;
+
+        }
+
+        main{
+
+            padding:25px;
+
+        }
+
+        .card{
+
+            background:#242424;
+            border-radius:12px;
+            padding:18px;
+            margin-bottom:20px;
+
+        }
+
+        .dashboard{
+        
+            display:grid;
+        
+            grid-template-columns:
+                repeat(auto-fit,minmax(220px,1fr));
+        
+            gap:20px;
+        
+        }
+        
+        .card{
+        
+            text-align:center;
+        
+        }
+        
+        .card h3{
+        
+            margin-top:0;
+        
+            color:#8fd3ff;
+        
+        }
+        
+        .card p{
+        
+            font-size:2em;
+        
+            margin:10px 0;
+        
+        }
+
+        button{
+
+            padding:10px 18px;
+            font-size:16px;
+            border:none;
+            border-radius:8px;
+            cursor:pointer;
+
+        }
+
+        img{
+
+            max-width:100%;
+
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<header>
+
+    <h1>Wildlife Camera</h1>
+
+    <nav>
+
+        <a href="/">Home</a>
+
+        <a href="/preview">Preview</a>
+
+        <a href="/gallery">Gallery</a>
+
+    </nav>
+
+</header>
+
+<main>
+
+{% block content %}
+
+{% endblock %}
+
+</main>
+
+
+</body>
+
+</html>

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<form method="get" style="margin-bottom:20px;">
+
+<select name="date" onchange="this.form.submit()">
+
+<option value="">All dates</option>
+
+{% for d in available_dates %}
+
+<option value="{{ d }}"
+{% if d == selected_date %}selected{% endif %}>
+{{ d }}
+</option>
+
+{% endfor %}
+
+</select>
+
+</form>
+
+<div class="grid">
+
+{% for event in events %}
+
+<div class="card">
+
+<a href="{{ event.link }}">
+    <img src="{{ event.thumb }}">
+</a>
+
+<div class="label">
+{{ event.label }}
+</div>
+
+<div class="time">
+{{ event.date_text }}<br>
+{{ event.time_text }}
+</div>
+
+<form
+    method="post"
+    action="/delete/{{ event.image_name }}"
+    onsubmit="return confirm('Delete this item?');">
+
+<button type="submit">
+🗑 Delete
+</button>
+
+</form>
+
+</div>
+
+{% endfor %}
+
+</div>
+
+{% endblock %}
