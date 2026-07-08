@@ -178,13 +178,13 @@ class CameraManager:
         )
         
         if stills:
-            self.last_still = stills[0]
+            self.last_still = str(stills[0].name)
         
         if motions:
-            self.last_motion_image = motions[0]
+            self.last_motion_image = str(motions[0].name)
         
         if clips:
-            self.last_clip = clips[0]
+            self.last_clip = str(clips[0].name)
 
         self.picam2.start()
 
@@ -1200,38 +1200,32 @@ def api_status():
    
     
     disk = shutil.disk_usage(camera.base_dir)
-    return jsonify(
-        {
-            "boot": _boot,
-            "recording": camera._recording,
-            "motion_enabled": camera._motion_enabled,
-            "motion_triggers": camera.motion_triggers,
-            "motion_area": camera.motion_area,
-            "motion_frames_required": camera.motion_frames_required,
-            "motion_cooldown": camera.motion_cooldown,
-            "last_motion": camera.last_motion,
-            "last_still": (
-                camera.last_still.name
-                if camera.last_still else None
-            ),
-            
-            "last_motion_image": (
-                camera.last_motion_image.name
-                if camera.last_motion_image else None
-            ),
-            
-            "last_clip": (
-                camera.last_clip.name
-                if camera.last_clip else None
-            ),
-            "image_count": images,
-            
-            "video_count": videos,
-            "media_size_mb": round(media_size / 1024 / 1024, 1),
-            
-            "disk_free_gb": round(disk.free / 1024 / 1024 / 1024, 1),
-        }
-    )    
+
+    status = {
+        "boot": _boot,
+        "recording": camera._recording,
+        "motion_enabled": camera._motion_enabled,
+        "motion_triggers": camera.motion_triggers,
+        "motion_area": camera.motion_area,
+        "motion_frames_required": camera.motion_frames_required,
+        "motion_cooldown": camera.motion_cooldown,
+        "last_motion": camera.last_motion,
+        "last_still": camera.last_still if camera.last_still else None,
+        "last_motion_image": camera.last_motion_image if camera.last_motion_image else None,
+        "last_clip": camera.last_clip if camera.last_clip else None,
+        "image_count": images,
+        "video_count": videos,
+        "media_size_mb": round(media_size / 1024 / 1024, 1),
+        "disk_free_gb": round(disk.free / 1024 / 1024 / 1024, 1),
+    }
+   
+    for key, value in status.items():
+        print(f"{key}: {type(value)}")
+        if isinstance(value, dict):
+            for k, v in value.items():
+                print(f"    {k}: {type(v)}")
+   
+    return jsonify(status)
 
 @app.route("/snapshot.jpg")
 def snapshot():
@@ -1278,7 +1272,7 @@ def latest_still():
 
     return send_from_directory(
         camera.base_dir,
-        camera.last_still.name
+        camera.last_still
     )
 
 
@@ -1290,7 +1284,7 @@ def latest_motion():
 
     return send_from_directory(
         camera.base_dir,
-        camera.last_motion_image.name
+        camera.last_motion_image
     )
 
 
