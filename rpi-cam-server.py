@@ -841,220 +841,39 @@ def gallery():
     
             if e["timestamp"].startswith(selected_date)
     
-        ]       
+        ] 
 
-        
-
-    html = ["""
-    <html>
-    <head>
-    <style>
-
-    body{
-        font-family:sans-serif;
-        margin:20px;
-        background:#222;
-        color:white;
-    }
-
-    h1{
-        margin-bottom:20px;
-    }
-
-    .grid{
-        display:grid;
-        grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
-        gap:16px;
-    }
-
-    .card{
-        background:#333;
-        border-radius:10px;
-        padding:10px;
-    }
-
-    img{
-        width:100%;
-        border-radius:8px;
-    }
-
-    .label{
-        font-weight:bold;
-        margin-top:8px;
-        text-align:center;
-    }
-
-    .time{
-        font-size:12px;
-        color:#ccc;
-        text-align:center;
-        margin-top:4px;
-    }
-
-    </style>
-    </head>
-
-    <body>
-
-
-    <h1>Wildlife Gallery</h1>
-    """]
-    
-    html.append("""
-    <form method="get" style="margin-bottom:20px;">
-    <select name="date" onchange="this.form.submit()">
-    <option value="">All dates</option>
-    """)
-    
-    for d in available_dates:
-    
-        label = datetime.strptime(
-            d,
-            "%Y%m%d"
-        ).strftime("%d %b %Y")
-    
-        selected = "selected" if d == selected_date else ""
-    
-        html.append(
-            f'<option value="{d}" {selected}>{label}</option>'
-        )
-    
-    html.append("""
-    </select>
-    </form>
-    <form method="post" action="/delete-selected">
-
-    <label>
-    <input type="checkbox"
-           onclick="toggleAll(this)">
-    Select All
-    </label>
-    
-    <script>
-    
-    function toggleAll(source){
-    
-        let boxes =
-            document.getElementsByName("selected");
-    
-        for(let i=0;i<boxes.length;i++){
-    
-            boxes[i].checked = source.checked;
-    
-        }
-    
-    }
-    
-    </script>
-    
-    <div class="grid">
-    """)
-    
     for event in events:
-    
-        image = event["image"]
-        clip = event["clip"]
-    
-        if event["type"] == "still":
-    
-            label = "📷 Still"
-            thumb = f"/thumbs/{image.name}"
-            link = f"/media/{image.name}"
-    
-        else:
-    
-            label = "🚶 Motion"
-    
-            thumb = f"/thumbs/{image.name}"
-    
-            if clip:
-                link = f"/play/{clip.name}"
-            else:
-                link = f"/media/{image.name}"
-    
-        ts = event["timestamp"]
-    
-        date_text, time_text = format_timestamp(ts)
+          
+              image = event["image"]
+              clip = event["clip"]
+          
+              if event["type"] == "still":
+                  event["label"] = "📷 Still"
+                  event["thumb"] = f"/thumbs/{image.name}"
+                  event["link"] = f"/media/{image.name}"
+              else:
+                  event["label"] = "🚶 Motion"
+                  event["thumb"] = f"/thumbs/{image.name}"
+          
+                  if clip:
+                      event["link"] = f"/play/{clip.name}"
+                  else:
+                      event["link"] = f"/media/{image.name}"
+          
+              event["image_name"] = image.name
+          
+              event["date_text"], event["time_text"] = format_timestamp(
+                  event["timestamp"]
+              )      
 
-
-        html.append(f"""
-        <div class="card">
-
-        <form method="post" action = "/delete-selected">
-
-        <input
-            type="checkbox"
-            namd="selected"
-            value="{event["image"].name}"
-            style="transform:scale(1.5);margin-bottom:10px;">
-            
-            <a href="{link}">
-                <img src="{thumb}">
-            </a>
-        
-            <div class="label">
-                {label}
-            </div>
-        
-            <div class="time">
-                {date_text}<br>
-                {time_text}
-            </div>
-        
-            <form action="/delete/{image.name}"
-                  method="post"
-                  onsubmit="return confirm('Delete this item?');">
-        
-                <button type="submit"
-                        style="
-                            width:100%;
-                            margin-top:10px;
-                            padding:8px;
-                            background:#b00020;
-                            color:white;
-                            border:none;
-                            border-radius:6px;
-                            cursor:pointer;">
-        
-                    🗑 Delete
-        
-                </button>
-        
-            </form>
-        
-        </div>
-        
-        <br>
-        
-        <button
-            type="submit"
-            style="
-                padding:12px 24px;
-                font-size:16px;
-                background:#c33;
-                color:white;
-                border:none;
-                border-radius:8px;
-                cursor:pointer;
-            "
-            onclick="return confirm('Delete selected items?');">
-        
-        🗑 Delete Selected
-        
-        </button>
-        
-        </form>
-
-        
-        """)
-        
-    html.append("""
-    </div>
-    </body>
-    </html>
-    """)
-
-    return "".join(html)
+    return render_template(
+        "gallery.html",
+        title="Gallery",
+        events=events,
+        available_dates=available_dates,
+        selected_date=selected_date,
+    )
 
 @app.route("/play/<path:filename>")
 def play_video(filename):
@@ -1179,7 +998,49 @@ def delete_media(filename):
 
     return redirect("/gallery")
         
+@app.route("/delete-selected", methods=["POST"])
+def delete_selected():
 
+    selected = request.form.getlist("selected")
+
+    thumbs_dir = camera.base_dir / "thumbs"
+
+    for filename in selected:
+
+        path = camera.base_dir / filename
+
+        if not path.exists():
+            continue
+
+        if filename.startswith("motion_"):
+
+            ts = media_timestamp(path)
+
+            clip = camera.base_dir / f"clip_{ts}.mp4"
+
+            thumb = thumbs_dir / filename
+
+            if thumb.exists():
+                thumb.unlink()
+
+            clip_thumb = thumbs_dir / f"clip_{ts}.jpg"
+
+            if clip_thumb.exists():
+                clip_thumb.unlink()
+
+            if clip.exists():
+                clip.unlink()
+
+        elif filename.startswith("still_"):
+
+            thumb = thumbs_dir / filename
+
+            if thumb.exists():
+                thumb.unlink()
+
+        path.unlink()
+
+    return redirect("/gallery")
 
 @app.route("/api/status")
 def api_status():

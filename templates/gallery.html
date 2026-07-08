@@ -2,6 +2,45 @@
 
 {% block content %}
 
+<style>
+
+.grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+    gap:18px;
+}
+
+.card{
+    background:#333;
+    border-radius:12px;
+    padding:12px;
+}
+
+.card img{
+    width:100%;
+    border-radius:8px;
+}
+
+.label{
+    text-align:center;
+    font-weight:bold;
+    margin-top:10px;
+}
+
+.time{
+    text-align:center;
+    color:#bbb;
+    font-size:13px;
+    margin-top:4px;
+}
+
+button{
+    width:100%;
+    margin-top:10px;
+}
+
+</style>
+
 <form method="get" style="margin-bottom:20px;">
 
 <select name="date" onchange="this.form.submit()">
@@ -12,7 +51,7 @@
 
 <option value="{{ d }}"
 {% if d == selected_date %}selected{% endif %}>
-{{ d }}
+{{ d[6:8] }}/{{ d[4:6] }}/{{ d[:4]}}
 </option>
 
 {% endfor %}
@@ -20,6 +59,21 @@
 </select>
 
 </form>
+
+<form method="post" action="/delete-selected">
+
+<p>
+    <label>
+        <input type="checkbox"
+               onclick="toggleAll(this)">
+        Select all
+    </label>
+
+    <button type="submit"
+            onclick="return confirm('Delete selected items?')">
+        🗑 Delete Selected
+    </button>
+</p>
 
 <div class="grid">
 
@@ -40,21 +94,39 @@
 {{ event.time_text }}
 </div>
 
-<form
-    method="post"
-    action="/delete/{{ event.image_name }}"
-    onsubmit="return confirm('Delete this item?');">
 
-<button type="submit">
-🗑 Delete
-</button>
+<label>
 
-</form>
+<input
+    type="checkbox"
+    name="selected"
+    value="{{ event.image_name }}">
+
+Delete
+
+</label>
 
 </div>
 
 {% endfor %}
 
 </div>
+</form>
+<script>
+
+function toggleAll(source){
+
+    const boxes =
+        document.getElementsByName("selected");
+
+    for(let i=0;i<boxes.length;i++){
+
+        boxes[i].checked = source.checked;
+
+    }
+
+}
+
+</script>
 
 {% endblock %}
