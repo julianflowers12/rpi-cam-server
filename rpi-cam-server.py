@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Optional
 from PIL import Image
 from collections import OrderedDict
+import zipfile
+import io
 
 
 from flask import (
@@ -18,7 +20,8 @@ from flask import (
     send_from_directory,
     Response,
     redirect,
-    render_template
+    render_template,
+    send_file
 )
 
 from picamera2 import Picamera2
@@ -1041,6 +1044,78 @@ def delete_selected():
         path.unlink()
 
     return redirect("/gallery")
+
+@app.route("/download-selected", methods=["POST"])
+def download_selected():
+
+    print(request.form)
+    
+
+    selected = request.form.getlist("selected")
+
+    memory_file = io.BytesIO()
+
+    with zipfile.ZipFile(
+        memory_file,
+        "w",
+        zipfile.ZIP_DEFLATED
+    ) as zf:
+
+        for filename in selected:
+
+            path = camera.base_dir / filename
+
+            if path.exists():
+                zf.write(path, arcname=filename)
+
+            # include matching clip automatically
+            if filename.startswith("motion_"):
+
+                ts = media_timestamp(path)
+
+                clip = camera.base_dir / f"clip_{ts}.mp4"
+
+                if clip.exists():
+                    zf.write(
+                        clip,
+                        arcname=clip.name
+                    )
+
+    memory_file.seek(0)
+
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    return send_file(
+        memory_file,
+        mimetype="application/zip",
+        as_attachment=True,
+        download_name=f"selected_{stamp}.zip",
+    ) 
+
+@app.route("/download-all")
+def download_all():
+
+    memory_file = io.BytesIO()
+
+    with zipfile.ZipFile(
+        memory_file,
+        "w",
+        zipfile.ZIP_DEFLATED
+    ) as zf:
+
+        for f in build_media():
+            zf.write(f, arcname=f.name)
+
+    memory_file.seek(0)
+
+    return send_file(
+        memory_file,
+        as_attachment=True,
+        download_name=(
+            f"wildlife_{datetime.now():%Y%m%d_%H%M%S}.zip"
+        ),
+        mimetype="application/zip",
+    )   
 
 @app.route("/api/status")
 def api_status():

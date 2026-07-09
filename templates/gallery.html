@@ -34,11 +34,128 @@
     margin-top:4px;
 }
 
-button{
-    width:100%;
-    margin-top:10px;
+.toolbar{
+
+    display:flex;
+    align-items:center;
+    gap:12px;
+    flex-wrap:wrap;
+    margin-bottom:20px;
+
 }
 
+.toolbar-item{
+
+    display:flex;
+    align-items:center;
+
+}
+
+.toolbar a{
+
+    text-decoration:none;
+
+}
+
+button{
+
+    width:auto;
+    padding:10px 18px;
+    border:none;
+    border-radius:8px;
+    background:#2f7ae5;
+    color:white;
+    cursor:pointer;
+    font-size:15px;
+
+}
+
+button:hover{
+
+    background:#1f63c4;
+
+}
+
+.lightbox{
+
+    display:none;
+    position:fixed;
+
+    left:0;
+    top:0;
+
+    width:100%;
+    height:100%;
+
+    background:rgba(0,0,0,.9);
+
+    z-index:9999;
+
+}
+
+.lightbox img{
+
+    position:absolute;
+
+    left:50%;
+    top:50%;
+
+    transform:translate(-50%,-50%);
+
+    max-width:90%;
+    max-height:90%;
+
+    border-radius:12px;
+
+}
+
+#close-lightbox{
+
+    position:absolute;
+
+    top:20px;
+    right:30px;
+
+    font-size:42px;
+
+    color:white;
+
+    cursor:pointer;
+
+}
+
+#prev-image,
+#next-image{
+
+    position:absolute;
+
+    top:50%;
+
+    transform:translateY(-50%);
+
+    font-size:60px;
+
+    color:white;
+
+    cursor:pointer;
+
+    user-select:none;
+
+    padding:20px;
+
+}
+
+#prev-image{
+
+    left:25px;
+
+}
+
+#next-image{
+
+    right:25px;
+
+}
 </style>
 
 <form method="get" style="margin-bottom:20px;">
@@ -62,18 +179,40 @@ button{
 
 <form method="post" action="/delete-selected">
 
-<p>
-    <label>
-        <input type="checkbox"
-               onclick="toggleAll(this)">
+<div class="toolbar">
+
+    <label class="toolbar-item">
+        <input
+            type="checkbox"
+            onclick="toggleAll(this)">
         Select all
     </label>
 
-    <button type="submit"
-            onclick="return confirm('Delete selected items?')">
+    <a href="/download-all" class="toolbar-item">
+        <button type="button">
+            📦 Download All
+        </button>
+    </a>
+
+	<button
+		type="submit"
+		formaction="/download-selected">
+		⬇ Download Selected
+	</button>
+
+    <button
+        type="submit"
+        formaction="/delete-selected/"
+        onclick="return confirm('Delete selected items?')">
+
         🗑 Delete Selected
+
     </button>
-</p>
+
+ 
+   
+
+</div>
 
 <div class="grid">
 
@@ -81,10 +220,14 @@ button{
 
 <div class="card">
 
-<a href="{{ event.link }}">
-    <img src="{{ event.thumb }}">
-</a>
+<div class="card">
 
+<img
+    class="gallery-image"
+    src="{{ event.thumb }}"
+    data-full="/media/{{ event.image_name }}"
+    alt="">
+    
 <div class="label">
 {{ event.label }}
 </div>
@@ -126,6 +269,127 @@ function toggleAll(source){
     }
 
 }
+
+</script>
+
+<div id="lightbox" class="lightbox">
+
+    <span id="close-lightbox">&times;</span>
+
+    <span id="prev-image">&#10094;</span>
+
+    <img id="lightbox-image">
+
+    <span id="next-image">&#10095;</span>
+
+</div>
+
+<script>
+
+const images =
+    Array.from(document.querySelectorAll(".gallery-image"));
+
+const lightbox =
+    document.getElementById("lightbox");
+
+const lightboxImage =
+    document.getElementById("lightbox-image");
+
+let current = 0;
+
+function showImage(index){
+
+    current = index;
+
+    lightboxImage.src =
+        images[index].dataset.full;
+
+    lightbox.style.display = "block";
+
+}
+
+images.forEach((img,index)=>{
+
+    img.onclick = function(){
+
+        showImage(index);
+
+    };
+
+});
+
+document.getElementById("close-lightbox")
+.onclick=function(){
+
+    lightbox.style.display="none";
+
+};
+
+lightbox.onclick=function(e){
+
+    if(e.target===lightbox){
+
+        lightbox.style.display="none";
+
+    }
+
+};
+
+document.getElementById("prev-image")
+.onclick=function(e){
+
+    e.stopPropagation();
+
+    current =
+        (current-1+images.length)%images.length;
+
+    showImage(current);
+
+};
+
+document.getElementById("next-image")
+.onclick=function(e){
+
+    e.stopPropagation();
+
+    current =
+        (current+1)%images.length;
+
+    showImage(current);
+
+};
+
+document.addEventListener("keydown", function(e){
+
+    if(lightbox.style.display !== "block")
+        return;
+
+    if(e.key === "ArrowRight"){
+
+        current =
+            (current + 1) % images.length;
+
+        showImage(current);
+
+    }
+
+    if(e.key === "ArrowLeft"){
+
+        current =
+            (current - 1 + images.length)
+            % images.length;
+
+        showImage(current);
+
+    }
+
+    if(e.key === "Escape"){
+
+        lightbox.style.display = "none";
+
+    }
+
+});
 
 </script>
 
