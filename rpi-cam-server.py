@@ -792,6 +792,8 @@ def build_events():
             "timestamp": media_timestamp(f),
             "image": f,
             "clip": None,
+            "sort": f.stat().st_mtime,
+        
         })
 
     # motion
@@ -807,13 +809,39 @@ def build_events():
             "timestamp": ts,
             "image": f,
             "clip": clip if clip.exists() else None,
+            "sort": f.stat().st_mtime,
+            
         })
 
+    
+
+    for f in camera.base_dir.glob("clip_*.mp4"):
+    
+        ts = media_timestamp(f)
+    
+        motion = camera.base_dir / f"motion_{ts}.jpg"
+    
+        # Skip clips that already belong to a motion event
+        if motion.exists():
+            continue
+    
+        thumb = camera.base_dir / "thumbs" / f.with_suffix(".jpg").name
+    
+        events.append({
+            "type": "motiom",
+            "timestamp": ts,
+            "image": f,
+            "clip": f, 
+            "sort": f.stat().st_mtime,
+        })
     events.sort(
-        key=lambda e: e["timestamp"],
+        key=lambda e: e["sort"],
         reverse=True
     )
 
+    for e in events[:20]:
+        print(e["type"], e["timestamp"])
+    
     return events
     
 @app.route("/gallery")
@@ -847,28 +875,37 @@ def gallery():
         ] 
 
     for event in events:
-          
-              image = event["image"]
-              clip = event["clip"]
-          
-              if event["type"] == "still":
-                  event["label"] = "📷 Still"
-                  event["thumb"] = f"/thumbs/{image.name}"
-                  event["link"] = f"/media/{image.name}"
-              else:
-                  event["label"] = "🚶 Motion"
-                  event["thumb"] = f"/thumbs/{image.name}"
-          
-                  if clip:
-                      event["link"] = f"/play/{clip.name}"
-                  else:
-                      event["link"] = f"/media/{image.name}"
-          
-              event["image_name"] = image.name
-          
-              event["date_text"], event["time_text"] = format_timestamp(
-                  event["timestamp"]
-              )      
+        
+            image = event["image"]
+            clip = event["clip"]
+        
+            if event["type"] == "still":
+        
+                event["label"] = "📷 Still"
+                event["thumb"] = f"/thumbs/{image.name}"
+                event["link"] = f"/media/{image.name}"
+        
+            elif event["type"] == "motion":
+        
+                event["label"] = "🚶 Motion"
+                event["thumb"] = f"/thumbs/{image.name}"
+        
+                if clip:
+                    event["link"] = f"/play/{clip.name}"
+                else:
+                    event["link"] = f"/media/{image.name}"
+        
+            elif event["type"] == "clip":
+        
+                event["label"] = "🎥 Clip"
+                event["thumb"] = f"/thumbs/{clip.with_suffix('.jpg').name}"
+                event["link"] = f"/play/{clip.name}"
+        
+            event["image_name"] = image.name
+        
+            event["date_text"], event["time_text"] = format_timestamp(
+                event["timestamp"]
+            )    
 
     return render_template(
         "gallery.html",

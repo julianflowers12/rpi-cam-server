@@ -6,8 +6,8 @@
 
 .grid{
     display:grid;
-    grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
-    gap:18px;
+    grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+    gap:24px;
 }
 
 .card{
@@ -74,6 +74,41 @@ button:hover{
 
     background:#1f63c4;
 
+}
+
+.card{
+    transition:.2s;
+}
+
+.card img{
+    width:100%;
+    height:240px;
+    object-fit:cover;
+    border-radius:10px;
+}
+
+.label{
+
+    display:inline-block;
+
+    padding:4px 10px;
+
+    border-radius:20px;
+
+    font-size:13px;
+
+    font-weight:bold;
+
+    margin-top:10px;
+
+    background:#eef4ff;
+
+    color:#3366cc;
+}
+
+.card:hover{
+    transform:translateY(-4px);
+    box-shadow:0 6px 20px rgba(0,0,0,.18);
 }
 
 .lightbox{
@@ -220,14 +255,24 @@ button:hover{
 
 <div class="card">
 
-<div class="card">
+{% if event.type == "clip" %}
+
+<a href="{{ event.link }}">
+
+    <img src="{{ event.thumb }}" alt="">
+
+</a>
+
+{% else %}
 
 <img
     class="gallery-image"
     src="{{ event.thumb }}"
-    data-full="/media/{{ event.image_name }}"
+    data-full="/media/{{ event.image_name }}?t={{ event.timestamp }}"
     alt="">
-    
+
+{% endif %}
+
 <div class="label">
 {{ event.label }}
 </div>
@@ -236,7 +281,6 @@ button:hover{
 {{ event.date_text }}<br>
 {{ event.time_text }}
 </div>
-
 
 <label>
 
@@ -392,5 +436,51 @@ document.addEventListener("keydown", function(e){
 });
 
 </script>
+
+<div id="lightbox" class="lightbox">
+
+    <span class="close">&times;</span>
+
+    <img id="lightbox-img">
+
+</div>
+
+<script>
+
+const lightbox=document.getElementById("lightbox");
+
+const lightboxImg=document.getElementById("lightbox-img");
+
+document.querySelectorAll(".gallery-image").forEach(img=>{
+
+    img.onclick=()=>{
+
+        lightbox.style.display="flex";
+
+        lightboxImg.src=img.dataset.full;
+
+    };
+
+});
+
+lightbox.onclick=()=>{
+
+    lightbox.style.display="none";
+
+};
+
+document.addEventListener("keydown",e=>{
+
+    if(e.key==="Escape"){
+
+        lightbox.style.display="none";
+
+    }
+
+});
+
+</script>
+
+
 
 {% endblock %}
