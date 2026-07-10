@@ -833,6 +833,8 @@ def media_timestamp(f):
          .replace("clip_", "")
     )
 
+ 
+
 def build_events():
 
     events = []
@@ -892,10 +894,9 @@ def build_events():
     events.sort(
         key=lambda e: e["sort"],
         reverse=True
+        
     )
 
-    for e in events[:20]:
-        print(e["type"], e["timestamp"])
     
     return events
     
