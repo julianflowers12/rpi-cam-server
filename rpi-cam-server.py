@@ -67,7 +67,62 @@ def format_timestamp(ts):
         dt.strftime("%d %b %Y"),
         dt.strftime("%H:%M:%S")
     )
-    
+
+
+def newest_media():
+
+    newest = None
+    newest_type = None
+
+    candidates = [
+
+        ("Still", camera.last_still),
+        ("Motion", camera.last_motion_image),
+        ("Clip", camera.last_clip),
+
+    ]
+
+    for media_type, filename in candidates:
+
+        if not filename:
+            continue
+
+        try:
+
+            ts = filename.split("_", 1)[1].split(".")[0]
+
+            dt = datetime.strptime(
+                ts,
+                "%Y%m%d_%H%M%S"
+            )
+
+            if newest is None or dt > newest:
+
+                newest = dt
+                newest_type = media_type
+
+        except Exception:
+            pass
+
+    return newest, newest_type
+
+def friendly_age(dt):
+
+    if dt is None:
+        return "Never"
+
+    seconds = int((datetime.now() - dt).total_seconds())
+
+    if seconds < 60:
+        return f"{seconds} sec ago"
+
+    if seconds < 3600:
+        return f"{seconds // 60} min ago"
+
+    if seconds < 86400:
+        return f"{seconds // 3600} hr ago"
+
+    return f"{seconds // 86400} day(s) ago"        
 
 import subprocess
 
@@ -1173,6 +1228,8 @@ def api_status():
             if f.is_file()
     
     )
+
+    latest_dt, latest_type = newest_media()
    
     
     disk = shutil.disk_usage(camera.base_dir)
@@ -1195,17 +1252,9 @@ def api_status():
         "video_count": videos,
         "media_size_mb": round(media_size / 1024 / 1024, 1),
         "disk_free_gb": round(disk.free / 1024 / 1024 / 1024, 1),
-        "last_activity": max(
-            filter(
-                None,
-                [
-                    camera.last_still,
-                    camera.last_motion,
-                    camera.last_clip,
-                ],
-            ),
-            default=None,
-        ),
+        "last_activity": friendly_age(latest_dt),
+        "last_actvity_type": latest_type,
+        
     }
    
     for key, value in status.items():

@@ -51,8 +51,9 @@ async function updateDashboard() {
 
 
 		document.getElementById("last-activity").textContent =
-
-    		s.last_activity || "Never";
+		    (s.last_activity_type || "") +
+		    " • " +
+		    (s.last_activity || "Never");
 
 		document.getElementById("motion-state").textContent =
 
@@ -60,7 +61,24 @@ async function updateDashboard() {
 
 		document.getElementById("recording-state").textContent =
 
-    		s.recording ? "Recording" : "Idle";            
+    		s.recording ? "Recording" : "Idle";  
+
+    	const title =  document.getElementById("health-title");
+    		          
+        if (s.last_activity.includes("sec") ||
+            s.last_activity.includes("min")) {
+    		          
+            title.textContent = "🟢 Camera Healthy";
+    		          
+        } else if (s.last_activity.includes("hr")) {
+    		          
+            title.textContent = "🟠 Camera Quiet";
+    		          
+    	} else {
+    		          
+    		 title.textContent = "🔴 Camera Needs Attention";
+    		          
+    	 }		          
 
         // Refresh latest images without browser cache
 
