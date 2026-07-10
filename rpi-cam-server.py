@@ -708,7 +708,7 @@ INDEX_HTML = """
 def index():
     return render_template(
         "index.html",
-        title="Wildlife Camera"
+        title="Garden Wildlife"
     )
 
     
@@ -828,7 +828,7 @@ def build_events():
         thumb = camera.base_dir / "thumbs" / f.with_suffix(".jpg").name
     
         events.append({
-            "type": "motiom",
+            "type": "clip",
             "timestamp": ts,
             "image": f,
             "clip": f, 
@@ -875,37 +875,40 @@ def gallery():
         ] 
 
     for event in events:
-        
-            image = event["image"]
-            clip = event["clip"]
-        
-            if event["type"] == "still":
-        
-                event["label"] = "📷 Still"
-                event["thumb"] = f"/thumbs/{image.name}"
-                event["link"] = f"/media/{image.name}"
-        
-            elif event["type"] == "motion":
-        
-                event["label"] = "🚶 Motion"
-                event["thumb"] = f"/thumbs/{image.name}"
-        
-                if clip:
-                    event["link"] = f"/play/{clip.name}"
-                else:
-                    event["link"] = f"/media/{image.name}"
-        
-            elif event["type"] == "clip":
-        
-                event["label"] = "🎥 Clip"
-                event["thumb"] = f"/thumbs/{clip.with_suffix('.jpg').name}"
-                event["link"] = f"/play/{clip.name}"
-        
-            event["image_name"] = image.name
-        
-            event["date_text"], event["time_text"] = format_timestamp(
-                event["timestamp"]
-            )    
+    
+        image = event["image"]
+        clip = event["clip"]
+    
+        if event["type"] == "still":
+    
+            event["label"] = "📷 Still"
+            event["thumb"] = f"/thumbs/{image.name}"
+            event["full"] = f"/media/{image.name}"
+            event["video"] = None
+    
+        elif event["type"] == "motion":
+    
+            event["label"] = "🚶 Motion"
+            event["thumb"] = f"/thumbs/{image.name}"
+            event["full"] = f"/media/{image.name}"
+    
+            if clip:
+                event["video"] = f"/play/{clip.name}"
+            else:
+                event["video"] = None
+    
+        elif event["type"] == "clip":
+    
+            event["label"] = "🎥 Clip"
+            event["thumb"] = f"/thumbs/{clip.with_suffix('.jpg').name}"
+            event["full"] = None
+            event["video"] = f"/play/{clip.name}"
+    
+        event["image_name"] = image.name
+    
+        event["date_text"], event["time_text"] = format_timestamp(
+            event["timestamp"]
+        )
 
     return render_template(
         "gallery.html",
@@ -1177,6 +1180,8 @@ def api_status():
     status = {
         "boot": _boot,
         "recording": camera._recording,
+        "camera_online": True,
+        "camera_name": 'Feeder',
         "motion_enabled": camera._motion_enabled,
         "motion_triggers": camera.motion_triggers,
         "motion_area": camera.motion_area,
@@ -1190,6 +1195,17 @@ def api_status():
         "video_count": videos,
         "media_size_mb": round(media_size / 1024 / 1024, 1),
         "disk_free_gb": round(disk.free / 1024 / 1024 / 1024, 1),
+        "last_activity": max(
+            filter(
+                None,
+                [
+                    camera.last_still,
+                    camera.last_motion,
+                    camera.last_clip,
+                ],
+            ),
+            default=None,
+        ),
     }
    
     for key, value in status.items():

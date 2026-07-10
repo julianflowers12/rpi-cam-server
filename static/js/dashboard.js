@@ -1,3 +1,4 @@
+console.log("dashboard.js loaded");
 async function updateDashboard() {
 
     try {
@@ -27,6 +28,9 @@ async function updateDashboard() {
 
         }
 
+		document.getElementById("camera-name").textContent =
+		    s.camera_name;
+		    
         document.getElementById("camera-status").textContent = cameraText;
 
         document.getElementById("image-count").textContent =
@@ -43,6 +47,20 @@ async function updateDashboard() {
 
         document.getElementById("media-size").textContent =
             s.media_size_mb.toFixed(1) + " MB";
+
+
+
+		document.getElementById("last-activity").textContent =
+
+    		s.last_activity || "Never";
+
+		document.getElementById("motion-state").textContent =
+
+    		s.motion_enabled ? "Enabled" : "Disabled";
+
+		document.getElementById("recording-state").textContent =
+
+    		s.recording ? "Recording" : "Idle";            
 
         // Refresh latest images without browser cache
 
