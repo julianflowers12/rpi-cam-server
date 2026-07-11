@@ -131,31 +131,25 @@ def create_video_thumbnail(video_path):
     thumb_dir = video_path.parent / "thumbs"
     thumb_dir.mkdir(exist_ok=True)
 
-    thumb_path = (
-        thumb_dir /
-        video_path.with_suffix(".jpg").name
-    )
+    thumb_path = thumb_dir / video_path.with_suffix(".jpg").name
 
-    try:
-        subprocess.run(
-            [
-                "ffmpeg",
-                "-y",
-                "-ss", "5",
-                "-i", str(video_path),
-                "-frames:v", "1",
-                str(thumb_path),
-            ],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            check=False,
-        )
+    cap = cv2.VideoCapture(str(video_path))
 
-    except Exception as e:
-        print(f"Video thumbnail error: {e}")
+    if not cap.isOpened():
+        return thumb_path
+
+    # Jump to 5 seconds
+    cap.set(cv2.CAP_PROP_POS_MSEC, 5000)
+
+    ok, frame = cap.read()
+
+    if ok:
+        cv2.imwrite(str(thumb_path), frame)
+
+    cap.release()
 
     return thumb_path
-
+    
 class CameraManager:
     """
     Handles:
@@ -181,7 +175,7 @@ class CameraManager:
 
                 "size": (320, 240),       # preview stream
 
-                "format": "YUV420",
+                "format": "RGB888",
 
             },
 
@@ -265,12 +259,12 @@ class CameraManager:
 
         while self._preview_running:
             try:
-                yuv = self.picam2.capture_array("lores")  
 
-                frame = cv2.cvtColor(
-                    yuv,
-                    cv2.COLOR_YUV2BGR_I420
-                )
+                lores_width = 320
+                
+                frame = self.picam2.capture_array("lores")  
+
+               
 
                 with self._lock:
                     self._preview_frame = frame.copy()

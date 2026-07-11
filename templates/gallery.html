@@ -2,196 +2,8 @@
 
 {% block content %}
 
-<style>
-
-.grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
-    gap:24px;
-}
-
-.card{
-    background:#333;
-    border-radius:12px;
-    padding:12px;
-}
-
-.card img{
-    width:100%;
-    border-radius:8px;
-}
-
-.label{
-    text-align:center;
-    font-weight:bold;
-    margin-top:10px;
-}
-
-.time{
-    text-align:center;
-    color:#bbb;
-    font-size:13px;
-    margin-top:4px;
-}
-
-.toolbar{
-
-    display:flex;
-    align-items:center;
-    gap:12px;
-    flex-wrap:wrap;
-    margin-bottom:20px;
-
-}
-
-.toolbar-item{
-
-    display:flex;
-    align-items:center;
-
-}
-
-.toolbar a{
-
-    text-decoration:none;
-
-}
-
-button{
-
-    width:auto;
-    padding:10px 18px;
-    border:none;
-    border-radius:8px;
-    background:#2f7ae5;
-    color:white;
-    cursor:pointer;
-    font-size:15px;
-
-}
-
-button:hover{
-
-    background:#1f63c4;
-
-}
-
-.card{
-    transition:.2s;
-}
-
-.card img{
-    width:100%;
-    height:240px;
-    object-fit:cover;
-    border-radius:10px;
-}
-
-.label{
-
-    display:inline-block;
-
-    padding:4px 10px;
-
-    border-radius:20px;
-
-    font-size:13px;
-
-    font-weight:bold;
-
-    margin-top:10px;
-
-    background:#eef4ff;
-
-    color:#3366cc;
-}
-
-.card:hover{
-    transform:translateY(-4px);
-    box-shadow:0 6px 20px rgba(0,0,0,.18);
-}
-
-.lightbox{
-
-    display:none;
-    position:fixed;
-
-    left:0;
-    top:0;
-
-    width:100%;
-    height:100%;
-
-    background:rgba(0,0,0,.9);
-
-    z-index:9999;
-
-}
-
-.lightbox img{
-
-    position:absolute;
-
-    left:50%;
-    top:50%;
-
-    transform:translate(-50%,-50%);
-
-    max-width:90%;
-    max-height:90%;
-
-    border-radius:12px;
-
-}
-
-#close-lightbox{
-
-    position:absolute;
-
-    top:20px;
-    right:30px;
-
-    font-size:42px;
-
-    color:white;
-
-    cursor:pointer;
-
-}
-
-#prev-image,
-#next-image{
-
-    position:absolute;
-
-    top:50%;
-
-    transform:translateY(-50%);
-
-    font-size:60px;
-
-    color:white;
-
-    cursor:pointer;
-
-    user-select:none;
-
-    padding:20px;
-
-}
-
-#prev-image{
-
-    left:25px;
-
-}
-
-#next-image{
-
-    right:25px;
-
-}
-</style>
+<link rel="stylesheet"
+      href="{{ url_for('static', filename='css/gallery.css') }}">
 
 <form method="get" style="margin-bottom:20px;">
 
@@ -258,14 +70,16 @@ button:hover{
 {% if event.video %}
 
 <div class="video-thumb">
-<a href="{{ event.video }}">
-    <img
-        class="gallery-image"
-        src="{{ event.thumb }}"
-        alt="">
 
-    <div class="play-icon">▶</div>
+<a href="{{ event.video }}">
+
+<img
+    class="gallery-image"
+    src="{{ event.thumb }}"
+    alt="">
+
 </a>
+
 </div>
 
 {% else %}
@@ -312,7 +126,11 @@ button:hover{
 
 </div>
 
+
 <div class="card-footer">
+
+
+<label>
 
 <input
     type="checkbox"
@@ -320,9 +138,11 @@ button:hover{
     value="{{ event.image_name }}">
     
 
-Select
+<span>Select</span>
 
 </label>
+
+</div>
 
 </div>
 
