@@ -257,6 +257,7 @@ button:hover{
 
 {% if event.video %}
 
+<div class="video-thumb">
 <a href="{{ event.video }}">
     <img
         class="gallery-image"
@@ -265,6 +266,7 @@ button:hover{
 
     <div class="play-icon">▶</div>
 </a>
+</div>
 
 {% else %}
 
@@ -276,37 +278,49 @@ button:hover{
 
 {% endif %}
 
-<div class="label">
+<div class="card-info">
 
-{% if event.type == "still" %}
+    <div class="label">
+        {{ event.label }}
+    </div>
 
-<span class="badge still">📷 Still</span>
+    <div class="time">
+        {{ event.date_text }} • {{ event.time_text }}
+    </div>
 
-{% elif event.type == "motion" %}
+    <div class="event-meta">
 
-<span class="badge motion">🚶 Motion</span>
+        {% if event.type == "motion" %}
 
-{% else %}
+            📷 Snapshot
 
-<span class="badge clip">🎥 Clip</span>
+            {% if event.video %}
+                &nbsp;&nbsp;🎥 30 sec video
+            {% endif %}
 
-{% endif %}
+        {% elif event.type == "clip" %}
+
+            🎥 Manual recording
+
+        {% else %}
+
+            📷 Manual still
+
+        {% endif %}
+
+    </div>
 
 </div>
 
-<div class="time">
-{{ event.date_text }}<br>
-{{ event.time_text }}
-</div>
-
-<label>
+<div class="card-footer">
 
 <input
     type="checkbox"
     name="selected"
     value="{{ event.image_name }}">
+    
 
-Delete
+Select
 
 </label>
 

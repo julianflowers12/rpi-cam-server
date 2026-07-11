@@ -1,0 +1,156 @@
+/* ==========================================================
+   Gallery Grid
+   ========================================================== */
+
+.grid{
+
+    display:grid;
+
+    grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+
+    gap:24px;
+
+    align-items:start;
+
+    margin-top:24px;
+
+}
+
+
+/* ==========================================================
+   Gallery Cards
+   ========================================================== */
+
+.card{
+
+    background:#fff;
+
+    border-radius:14px;
+
+    overflow:hidden;
+
+    box-shadow:0 3px 10px rgba(0,0,0,.10);
+
+}
+
+
+/* ==========================================================
+   Images
+   ========================================================== */
+
+.gallery-image,
+.video-thumb img{
+
+    display:block;
+
+    width:100%;
+
+    height:240px;
+
+    object-fit:cover;
+
+    background:#ddd;
+
+    cursor:pointer;
+
+}
+
+
+/* ==========================================================
+   Video Thumbnail
+   ========================================================== */
+
+.video-thumb{
+
+    position:relative;
+
+    overflow:hidden;
+
+}
+
+.video-thumb a{
+
+    display:block;
+
+}
+
+
+/* ==========================================================
+   Card Information
+   ========================================================== */
+
+.card-info{
+
+    padding:18px;
+
+}
+
+.label{
+
+    font-size:1.1rem;
+
+    font-weight:700;
+
+    margin-bottom:8px;
+
+    color:#222;
+
+}
+
+.time{
+
+    color:#777;
+
+    font-size:.9rem;
+
+    margin-bottom:12px;
+
+}
+
+.event-meta{
+
+    color:#2d6f3a;
+
+    font-size:.92rem;
+
+    font-weight:600;
+
+}
+
+
+/* ==========================================================
+   Footer
+   ========================================================== */
+
+.card-footer{
+
+    padding:14px 18px;
+
+    border-top:1px solid #eee;
+
+    background:#fafafa;
+
+}
+
+.card-footer label{
+
+    color:#333;
+
+    font-weight:600;
+
+}
+
+
+/* ==========================================================
+   Mobile
+   ========================================================== */
+
+@media (max-width:800px){
+
+    .grid{
+
+        grid-template-columns:1fr;
+
+    }
+
+}

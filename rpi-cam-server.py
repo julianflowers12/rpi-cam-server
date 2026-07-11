@@ -937,14 +937,14 @@ def gallery():
     
         if event["type"] == "still":
     
-            event["label"] = "📷 Still"
+            event["label"] = "📷 Stil Imagel"
             event["thumb"] = f"/thumbs/{image.name}"
             event["full"] = f"/media/{image.name}"
             event["video"] = None
     
         elif event["type"] == "motion":
     
-            event["label"] = "🚶 Motion"
+            event["label"] = "🚶 Wildlife Event"
             event["thumb"] = f"/thumbs/{image.name}"
             event["full"] = f"/media/{image.name}"
     
@@ -955,7 +955,7 @@ def gallery():
     
         elif event["type"] == "clip":
     
-            event["label"] = "🎥 Clip"
+            event["label"] = "🎥 Video clip"
             event["thumb"] = f"/thumbs/{clip.with_suffix('.jpg').name}"
             event["full"] = None
             event["video"] = f"/play/{clip.name}"
