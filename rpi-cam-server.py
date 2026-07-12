@@ -832,6 +832,7 @@ def media_timestamp(f):
 def build_events():
 
     events = []
+    used_motion = set()
 
     # stills
 
@@ -846,6 +847,7 @@ def build_events():
             "sort": f.stat().st_mtime,
         
         })
+
 
     # motion
 
@@ -864,6 +866,8 @@ def build_events():
             
         })
 
+        used_motion.add(ts)
+
     
 
     for f in camera.base_dir.glob("clip_*.mp4"):
@@ -873,7 +877,7 @@ def build_events():
         motion = camera.base_dir / f"motion_{ts}.jpg"
     
         # Skip clips that already belong to a motion event
-        if motion.exists():
+        if ts in used_motion:
             continue
     
         thumb = camera.base_dir / "thumbs" / f.with_suffix(".jpg").name
@@ -931,7 +935,7 @@ def gallery():
     
         if event["type"] == "still":
     
-            event["label"] = "📷 Stil Imagel"
+            event["label"] = "📷 Still Image"
             event["thumb"] = f"/thumbs/{image.name}"
             event["full"] = f"/media/{image.name}"
             event["video"] = None
@@ -1092,6 +1096,7 @@ def delete_media(filename):
     return redirect("/gallery")
         
 @app.route("/delete-selected", methods=["POST"])
+@app.route("/delete-selected/", methods=["POST"])
 def delete_selected():
 
     selected = request.form.getlist("selected")

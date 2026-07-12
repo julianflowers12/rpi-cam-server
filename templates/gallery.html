@@ -49,7 +49,7 @@
 
     <button
         type="submit"
-        formaction="/delete-selected/"
+        formaction="/delete-selected"
         onclick="return confirm('Delete selected items?')">
 
         🗑 Delete Selected
@@ -109,7 +109,7 @@
             📷 Snapshot
 
             {% if event.video %}
-                &nbsp;&nbsp;🎥 30 sec video
+                &nbsp;&nbsp;🎥 10 sec video
             {% endif %}
 
         {% elif event.type == "clip" %}
