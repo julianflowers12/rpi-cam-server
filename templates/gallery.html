@@ -63,7 +63,9 @@
 
 <div class="grid">
 
-{% for event in events %}
+{% for group in groups %}
+
+{% set event = group["items"][0] %}
 
 <div class="card">
 
@@ -100,6 +102,10 @@
 
     <div class="time">
         {{ event.date_text }} • {{ event.time_text }}
+    </div>
+
+    <div class="event-count">
+        {{ group["items"]|length }} item{% if group["items"]|length != 1 %}s{% endif %}
     </div>
 
     <div class="event-meta">

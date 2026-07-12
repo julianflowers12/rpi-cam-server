@@ -889,14 +889,52 @@ def build_events():
             "clip": f, 
             "sort": f.stat().st_mtime,
         })
+
     events.sort(
         key=lambda e: e["sort"],
         reverse=True
-        
     )
+   
+    groups = []
+   
+    current = None
+   
+    for event in events:
+   
+        if current is None:
+   
+            current = {
+                "sort": event["sort"],
+                "items": [event]
+            }
+   
+            groups.append(current)
+   
+            continue
+   
+       #
+       # Within 30 seconds?
+       #
+        if current["sort"] - event["sort"] <= 90:
+   
+             current["items"].append(event)
 
-    
-    return events
+        else:
+   
+            current = {
+                "sort": event["sort"],
+                "items": [event]
+            }
+   
+            groups.append(current)
+
+    app.logger.warning(
+        "EVENTS=%d GROUPS=%d",
+        len(events),
+        len(groups)
+    )
+   
+    return groups
     
 @app.route("/gallery")
 
@@ -904,12 +942,13 @@ def build_events():
 def gallery():
 
     media = build_media()
-    events = build_events()
+    groups = build_events()
     print("******** GALLERY CALLED ********")
     app.logger.warning(
-        "MEDIA=%d EVENTS=%d",
+        "MEDIA=%d GROUPS=%d ITEMS=%d",
         len(media),
-        len(events)
+        len(groups),
+        sum(len(g["items"]) for g in groups)
     )
     selected_date = request.args.get("date", "")
     available_dates = sorted({
@@ -920,15 +959,18 @@ def gallery():
 
     if selected_date:
     
-        events = [
+        groups = [
     
-            e for e in events
+            g for g in groups
     
-            if e["timestamp"].startswith(selected_date)
+            if g["items"][0]["timestamp"].startswith(selected_date)
     
         ] 
 
-    for event in events:
+    for group in groups:
+
+        event = group["items"][0]
+
     
         image = event["image"]
         clip = event["clip"]
@@ -967,7 +1009,7 @@ def gallery():
     return render_template(
         "gallery.html",
         title="Gallery",
-        events=events,
+        groups=groups,
         available_dates=available_dates,
         selected_date=selected_date,
     )
