@@ -895,46 +895,43 @@ def build_events():
         reverse=True
     )
    
+    
+    return events
+
+
+def build_groups(events, gap_seconds=90):
+
     groups = []
-   
+
     current = None
-   
+
     for event in events:
-   
+
         if current is None:
-   
+
             current = {
                 "sort": event["sort"],
                 "items": [event]
             }
-   
+
             groups.append(current)
-   
+
             continue
-   
-       #
-       # Within 30 seconds?
-       #
-        if current["sort"] - event["sort"] <= 90:
-   
-             current["items"].append(event)
+
+        if current["sort"] - event["sort"] <= gap_seconds:
+
+            current["items"].append(event)
 
         else:
-   
+
             current = {
                 "sort": event["sort"],
                 "items": [event]
             }
-   
+
             groups.append(current)
 
-    app.logger.warning(
-        "EVENTS=%d GROUPS=%d",
-        len(events),
-        len(groups)
-    )
-   
-    return groups
+    return groups    
     
 @app.route("/gallery")
 
@@ -942,13 +939,14 @@ def build_events():
 def gallery():
 
     media = build_media()
-    groups = build_events()
+    events = build_events()
+    groups = build_groups(events)
     print("******** GALLERY CALLED ********")
     app.logger.warning(
-        "MEDIA=%d GROUPS=%d ITEMS=%d",
+        "MEDIA=%d EVENTS=%d GROUPS=%d",
         len(media),
+        len(events),
         len(groups),
-        sum(len(g["items"]) for g in groups)
     )
     selected_date = request.args.get("date", "")
     available_dates = sorted({
@@ -988,12 +986,14 @@ def gallery():
             event["thumb"] = f"/thumbs/{image.name}"
             event["full"] = f"/media/{image.name}"
     
-            if clip:
-                event["video"] = f"/play/{clip.name}"
-            else:
-                event["video"] = None
+            
+            event["video"] = (
+                f"/play/{clip.name}"
+                if clip else None
+            )    
+            
+        else:      
     
-        elif event["type"] == "clip":
     
             event["label"] = "🎥 Video clip"
             event["thumb"] = f"/thumbs/{clip.with_suffix('.jpg').name}"
@@ -1001,8 +1001,8 @@ def gallery():
             event["video"] = f"/play/{clip.name}"
     
         event["image_name"] = image.name
-    
-        event["date_text"], event["time_text"] = format_timestamp(
+        (
+        event["date_text"], event["time_text"]) = format_timestamp(
             event["timestamp"]
         )
 

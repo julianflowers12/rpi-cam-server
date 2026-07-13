@@ -67,7 +67,14 @@
 
 {% set event = group["items"][0] %}
 
+
 <div class="card">
+
+<div class="event-count">
+    {{ group["items"]|length }}
+    item{% if group["items"]|length != 1 %}s{% endif %}
+</div>
+
 
 {% if event.video %}
 
