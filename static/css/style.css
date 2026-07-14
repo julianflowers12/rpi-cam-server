@@ -290,7 +290,101 @@ button:hover{
 
 }
 
+/* ======================================
+   Preview page
+   ====================================== */
 
+.preview-page{
+
+    max-width:1100px;
+
+    margin:auto;
+
+}
+
+.preview-panel{
+
+    text-align:center;
+
+    margin-bottom:24px;
+
+}
+
+.preview-image{
+
+    width:100%;
+
+    max-width:900px;
+
+    border-radius:14px;
+
+    box-shadow:0 4px 16px rgba(0,0,0,.18);
+
+}
+
+.preview-controls{
+
+    display:flex;
+
+    justify-content:center;
+
+    gap:16px;
+
+    flex-wrap:wrap;
+
+    margin-bottom:24px;
+
+}
+
+.preview-controls button{
+
+    min-width:180px;
+
+}
+
+.status-card{
+
+    background:white;
+
+    border-radius:14px;
+
+    padding:20px;
+
+    box-shadow:0 3px 12px rgba(0,0,0,.08);
+
+}
+
+.status-table{
+
+    width:100%;
+
+    border-collapse:collapse;
+
+}
+
+.status-table td{
+
+    padding:12px 6px;
+
+    border-bottom:1px solid #eee;
+
+}
+
+.status-table td:first-child{
+
+    font-weight:600;
+
+    color:#555;
+
+}
+
+.status-table td:last-child{
+
+    text-align:right;
+
+    font-weight:bold;
+
+}
 
 
 
