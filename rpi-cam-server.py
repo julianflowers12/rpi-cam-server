@@ -175,7 +175,7 @@ class CameraManager:
 
                 "size": (320, 240),       # preview stream
 
-                "format": "RGB888",
+                "format": "YUV420",
 
             },
 
@@ -256,20 +256,21 @@ class CameraManager:
         t.start()
 
     def _preview_loop(self):
-
+    
         while self._preview_running:
             try:
-
-                lores_width = 320
-                
-                frame = self.picam2.capture_array("lores")  
-
-               
-
+                raw = self.picam2.capture_array("lores")
+    
+                frame = cv2.cvtColor(
+                    raw,
+                    cv2.COLOR_YUV2BGR_I420
+                )
+    
                 with self._lock:
                     self._preview_frame = frame.copy()
+    
                 self._frame_counter += 1
-
+    
             except Exception as e:
                 print(f"Preview error: {repr(e)}")
                 time.sleep(1)
