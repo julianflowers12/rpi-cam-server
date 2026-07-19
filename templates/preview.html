@@ -31,6 +31,12 @@
             🚨 Motion
         </button>
 
+        
+        <button id="orientation-button"
+                onclick="rotateOrientation()">
+        🧭 Orientation: 0°
+        </button>
+
     </div>
 
     <div class="status-card">
@@ -142,6 +148,63 @@ async function toggleMotion(){
 
 }
 
+async function setOrientation(){
+
+    const angle =
+        parseInt(
+            document.getElementById("orientation").value
+        );
+
+    await fetch("/api/orientation",{
+
+        method:"POST",
+
+        headers:{
+            "Content-Type":"application/json"
+        },
+
+        body:JSON.stringify({
+            orientation:angle
+        })
+
+    });
+
+}
+
+let orientation = 0;
+
+async function rotateOrientation(){
+
+    orientation += 90;
+
+    if(orientation > 270)
+        orientation = 0;
+
+    await fetch("/api/orientation",{
+
+        method:"POST",
+
+        headers:{
+            "Content-Type":"application/json"
+        },
+
+        body:JSON.stringify({
+            orientation:orientation
+        })
+
+    });
+
+    updateOrientationButton();
+
+}
+
+function updateOrientationButton(){
+
+    document.getElementById("orientation-button").innerText =
+        "🧭 Orientation: " + orientation + "°";
+
+}
+
 async function updatePreviewStatus(){
 
 	console.log("Updating preview status");
@@ -175,6 +238,9 @@ async function updatePreviewStatus(){
             data.motion_enabled ?
                 "🚨 Disable Motion" :
                 "🚨 Enable Motion";
+
+		document.getElementById("orientation").value =
+		    status.orientation;
 
     }
     catch(err){

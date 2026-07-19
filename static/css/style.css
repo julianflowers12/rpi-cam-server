@@ -231,10 +231,10 @@ button:hover{
 }
 
 
-
-/* ==========================================================
+/* ==============================================
    Preview Page
-   ========================================================== */
+   ============================================== */
+
 
 .preview-page{
 
@@ -283,6 +283,22 @@ button:hover{
 .preview-controls button{
 
     min-width:190px;
+
+}
+
+#orientation-button{
+
+    background:#2d7ef7;
+    color:white;
+
+    border:none;
+    border-radius:8px;
+
+    padding:10px 18px;
+
+    font-size:15px;
+
+    cursor:pointer;
 
 }
 
