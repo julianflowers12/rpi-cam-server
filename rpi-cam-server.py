@@ -162,6 +162,7 @@ class CameraManager:
     def __init__(self, base_dir=None):
         self._frame_counter = 0
         self.picam2 = Picamera2()
+        self.orientation = 0
         self.motion_triggers = 0
         self.video_config = self.picam2.create_video_configuration(
 
@@ -242,6 +243,79 @@ class CameraManager:
 
         self.start_preview()
 
+    def rotate_video_file(self, video_path):
+        """
+        Rotate an MP4 file to match self.orientation.
+    
+        The original file is replaced only after FFmpeg succeeds.
+        """
+        angle = self.orientation
+    
+        if angle == 0:
+            return video_path
+    
+        video_path = Path(video_path)
+        rotated_path = video_path.with_name(
+            f"{video_path.stem}_rotating{video_path.suffix}"
+        )
+    
+        if angle == 90:
+            video_filter = "transpose=clock"
+    
+        elif angle == 180:
+            video_filter = "hflip,vflip"
+    
+        elif angle == 270:
+            video_filter = "transpose=cclock"
+    
+        else:
+            raise ValueError(
+                f"Unsupported orientation: {angle}"
+            )
+    
+        command = [
+            "ffmpeg",
+            "-y",
+            "-i", str(video_path),
+            "-vf", video_filter,
+    
+            # Re-encode the video after rotation
+            "-c:v", "libx264",
+            "-preset", "veryfast",
+            "-crf", "23",
+    
+            # Preserve audio if a clip ever contains it
+            "-c:a", "copy",
+    
+            # Improve browser playback
+            "-movflags", "+faststart",
+    
+            str(rotated_path),
+        ]
+    
+        try:
+            subprocess.run(
+                command,
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+    
+            rotated_path.replace(video_path)
+    
+            return video_path
+    
+        except subprocess.CalledProcessError as e:
+            rotated_path.unlink(missing_ok=True)
+    
+            print(
+                "Video rotation failed:",
+                e.stderr
+            )
+    
+            return video_path
+            
     # ---------- Preview ----------
 
     def start_preview(self):
@@ -254,26 +328,50 @@ class CameraManager:
        # 
         t = threading.Thread(target=self._preview_loop, daemon=True)
         t.start()
+                
 
     def _preview_loop(self):
-    
+
         while self._preview_running:
             try:
                 raw = self.picam2.capture_array("lores")
-    
+
+                # Convert YUV420 -> BGR
                 frame = cv2.cvtColor(
                     raw,
                     cv2.COLOR_YUV2BGR_I420
                 )
-    
+
+                # Rotate if required
+                if self.orientation == 90:
+                    frame = cv2.rotate(
+                        frame,
+                        cv2.ROTATE_90_CLOCKWISE
+                    )
+
+                elif self.orientation == 180:
+                    frame = cv2.rotate(
+                        frame,
+                        cv2.ROTATE_180
+                    )
+
+                elif self.orientation == 270:
+                    frame = cv2.rotate(
+                        frame,
+                        cv2.ROTATE_90_COUNTERCLOCKWISE
+                    )
+
                 with self._lock:
                     self._preview_frame = frame.copy()
-    
+
                 self._frame_counter += 1
-    
+
             except Exception as e:
-                print(f"Preview error: {repr(e)}")
+                print(f"Preview error: {e}")
                 time.sleep(1)
+
+
+
 
     def mjpeg_generator(self):
         while True:
@@ -370,6 +468,9 @@ class CameraManager:
             print("STOP_RECORDING_START")
             self.picam2.stop_recording()
             print("STOP_RECORDING_DONE")
+
+
+            self.rotate_video_file(video_path)
             
             print("CAMERA_STOP_START")
             self.picam2.stop()
@@ -827,6 +928,24 @@ def media_timestamp(f):
          .replace("motion_", "")
          .replace("clip_", "")
     )
+    
+
+@app.route("/api/orientation", methods=["POST"])
+def api_orientation():
+
+    body = request.get_json(silent=True) or {}
+
+    angle = self.orientation
+
+    if angle not in (0, 90, 180, 270):
+        return jsonify({"status":"error"}),400
+
+    camera.orientation = angle
+
+    return jsonify({
+        "status":"ok",
+        "orientation":camera.orientation
+    })    
 
  
 
@@ -1296,6 +1415,7 @@ def api_status():
         "media_size_mb": round(media_size / 1024 / 1024, 1),
         "disk_free_gb": round(disk.free / 1024 / 1024 / 1024, 1),
         "last_activity": friendly_age(latest_dt),
+        "orientation": camera.orientation,
         "last_actvity_type": latest_type,
         
     }
