@@ -53,6 +53,34 @@
                 </td>
             </tr>
 
+            <tr>
+                <td>Images</td>
+                <td id="image-count">
+                    --
+                </td>
+            </tr>
+
+            <tr>
+                <td>Videos</td>
+                <td id="video-count">
+                    --
+                </td>
+            </tr>
+
+            <tr>
+                <td>Last Motion</td>
+                <td id="last-motion">
+                    --
+                </td>
+            </tr>
+
+            <tr>
+                <td>Disk Free</td>
+                <td id="disk-free">
+                    --
+                </td>
+            </tr>
+
         </table>
 
     </div>
@@ -129,6 +157,19 @@ async function updatePreviewStatus(){
 
         document.getElementById("recording-status").textContent =
             data.recording ? "🔴 Recording" : "⚪ Idle";
+
+        document.getElementById("image-count").textContent =
+            data.image_count;
+            
+        document.getElementById("video-count").textContent =
+            data.video_count;
+            
+
+        document.getElementById("last-motion").textContent =
+            data.last_motion || "--";
+            
+        document.getElementById("disk-free").textContent =
+            data.disk_free_gb.toFixed(1) + " GB";    
 
         document.getElementById("motion-button").textContent =
             data.motion_enabled ?

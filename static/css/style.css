@@ -230,75 +230,17 @@ button:hover{
 
 }
 
-/* ===========================
-   Preview page
-   =========================== */
 
-.preview-container{
 
-    display:flex;
-
-    justify-content:center;
-
-    margin:20px 0;
-
-}
-
-.preview-image{
-
-    width:98vw;
-
-    max-width:1600px;
-
-    height:auto;
-
-}
-
-@media (max-width:700px){
-
-    .gallery-toolbar{
-
-        display:flex;
-
-        flex-direction:column;
-
-        gap:10px;
-
-    }
-
-    .gallery-toolbar button{
-
-        width:100%;
-
-    }
-
-}
-
-@media (max-width:800px){
-
-    .dashboard-images{
-
-        grid-template-columns:1fr;
-
-    }
-
-    .card p{
-
-        font-size:34px;
-
-    }
-
-}
-
-/* ======================================
-   Preview page
-   ====================================== */
+/* ==========================================================
+   Preview Page
+   ========================================================== */
 
 .preview-page{
 
     max-width:1100px;
 
-    margin:auto;
+    margin:0 auto;
 
 }
 
@@ -306,7 +248,7 @@ button:hover{
 
     text-align:center;
 
-    margin-bottom:24px;
+    margin-bottom:25px;
 
 }
 
@@ -316,9 +258,11 @@ button:hover{
 
     max-width:900px;
 
+    height:auto;
+
     border-radius:14px;
 
-    box-shadow:0 4px 16px rgba(0,0,0,.18);
+    box-shadow:0 4px 18px rgba(0,0,0,.18);
 
 }
 
@@ -328,29 +272,37 @@ button:hover{
 
     justify-content:center;
 
-    gap:16px;
+    gap:18px;
 
     flex-wrap:wrap;
 
-    margin-bottom:24px;
+    margin-bottom:25px;
 
 }
 
 .preview-controls button{
 
-    min-width:180px;
+    min-width:190px;
 
 }
 
 .status-card{
 
-    background:white;
+    background:#fff;
 
     border-radius:14px;
 
-    padding:20px;
+    padding:22px;
 
     box-shadow:0 3px 12px rgba(0,0,0,.08);
+
+}
+
+.status-card h3{
+
+    margin-top:0;
+
+    margin-bottom:18px;
 
 }
 
@@ -364,9 +316,15 @@ button:hover{
 
 .status-table td{
 
-    padding:12px 6px;
+    padding:12px 8px;
 
-    border-bottom:1px solid #eee;
+    border-bottom:1px solid #ececec;
+
+}
+
+.status-table tr:last-child td{
+
+    border-bottom:none;
 
 }
 
@@ -374,7 +332,7 @@ button:hover{
 
     font-weight:600;
 
-    color:#555;
+    color:#666;
 
 }
 
@@ -382,11 +340,28 @@ button:hover{
 
     text-align:right;
 
-    font-weight:bold;
+    font-weight:700;
+
+    color:#222;
 
 }
 
+@media (max-width:800px){
 
+    .preview-controls{
 
+        flex-direction:column;
 
+        align-items:center;
 
+    }
+
+    .preview-controls button{
+
+        width:100%;
+
+        max-width:320px;
+
+    }
+
+}
