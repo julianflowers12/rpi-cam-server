@@ -342,6 +342,10 @@ class CameraManager:
                     cv2.COLOR_YUV2BGR_I420
                 )
 
+                if self._frame_counter % 100 == 0:
+                    print(f"Preview thread sees orientation={self.orientation}")
+
+
                 # Rotate if required
                 if self.orientation == 90:
                     frame = cv2.rotate(
@@ -418,6 +422,25 @@ class CameraManager:
             print("3")
             request.release()
             frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+
+            if self.orientation == 90:
+                frame = cv2.rotate(
+                    frame,
+                    cv2.ROTATE_90_CLOCKWISE
+                )
+            
+            elif self.orientation == 180:
+                frame = cv2.rotate(
+                    frame,
+                    cv2.ROTATE_180
+                )
+            
+            elif self.orientation == 270:
+                frame = cv2.rotate(
+                    frame,
+                    cv2.ROTATE_90_COUNTERCLOCKWISE
+                )
+                
             print("4")
             save_image(path, frame)
             print("5")
@@ -746,7 +769,9 @@ INDEX_HTML = """
       document.getElementById("btn-still").onclick = async () => {
         setStatus("Capturing still...");
         try {
-          const res = await fetch("/api/capture_still", { method: "POST" });
+          const res = await fetch("/api
+
+          /capture_still", { method: "POST" });
           const data = await res.json();
           setStatus("Still saved: " + data.file);
         } catch (e) {
@@ -935,20 +960,34 @@ def api_orientation():
 
     body = request.get_json(silent=True) or {}
 
-    angle = self.orientation
+    print(f"Orientation request body: {body!r}", flush=True)
+
+    try:
+        angle = int(body.get("orientation"))
+    except (TypeError, ValueError):
+        return jsonify({
+            "status": "error",
+            "message": "Invalid orientation"
+        }), 400
 
     if angle not in (0, 90, 180, 270):
-        return jsonify({"status":"error"}),400
+        return jsonify({
+            "status": "error",
+            "message": "Orientation must be 0, 90, 180 or 270"
+        }), 400
 
     camera.orientation = angle
 
+    print(
+        f"API set orientation to {camera.orientation}",
+        flush=True
+    )
+
     return jsonify({
-        "status":"ok",
-        "orientation":camera.orientation
-    })    
-
- 
-
+        "status": "ok",
+        "orientation": camera.orientation
+    })
+    
 def build_events():
 
     events = []
@@ -1257,7 +1296,6 @@ def delete_media(filename):
 
     return redirect("/gallery")
         
-@app.route("/delete-selected", methods=["POST"])
 @app.route("/delete-selected/", methods=["POST"])
 def delete_selected():
 
