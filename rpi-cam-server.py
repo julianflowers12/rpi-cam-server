@@ -10,6 +10,13 @@ from PIL import Image
 from collections import OrderedDict
 import zipfile
 import io
+import socket
+import uuid
+from pathlib import Path
+
+VERSION = "1.0"
+
+
 
 
 from flask import (
@@ -40,6 +47,20 @@ _boot_ready_evt = Event()
 # ---------------- Camera Manager ----------------
 
 from PIL import Image
+
+DEVICE_ID_FILE = Path.home() / ".wildlife-device-id"
+
+
+def get_device_uuid():
+
+    if DEVICE_ID_FILE.exists():
+        return DEVICE_ID_FILE.read_text().strip()
+
+    device_uuid = str(uuid.uuid4())
+
+    DEVICE_ID_FILE.write_text(device_uuid)
+
+    return device_uuid
 
 def create_thumbnail(image_path):
     thumb_dir = image_path.parent / "thumbs"
@@ -243,6 +264,8 @@ class CameraManager:
         self.picam2.start()
 
         self.start_preview()
+
+        
 
     def rotate_video_file(self, video_path, angle):
         """
@@ -919,6 +942,35 @@ def index():
         "index.html",
         title="Garden Wildlife"
     )
+
+@app.route("/api/info")
+def api_info():
+
+    return jsonify({
+
+        "uuid": get_device_uuid(),
+
+        "device_type": "camera",
+
+        "hostname": socket.gethostname(),
+
+        "name": socket.gethostname(),
+
+        "version": VERSION,
+
+        "api_version": 1,
+
+        "capabilities": [
+
+            "preview",
+            "still",
+            "video",
+            "motion",
+            "gallery"
+
+        ]
+
+    })    
 
     
 @app.route("/preview")
