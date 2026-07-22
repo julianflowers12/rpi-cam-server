@@ -243,13 +243,12 @@ class CameraManager:
 
         self.start_preview()
 
-    def rotate_video_file(self, video_path):
+    def rotate_video_file(self, video_path, angle):
         """
         Rotate an MP4 file to match self.orientation.
     
         The original file is replaced only after FFmpeg succeeds.
         """
-        angle = self.orientation
     
         if angle == 0:
             return video_path
@@ -303,6 +302,13 @@ class CameraManager:
             )
     
             rotated_path.replace(video_path)
+            
+            create_video_thumbnail(video_path)
+            
+            print(
+                f"Background rotation finished in {time.time()-t0:.2f}s",
+                flush=True
+            )
     
             return video_path
     
@@ -467,6 +473,8 @@ class CameraManager:
         """
         with self._record_lock:
             print(f"ENTER record_clip: _recording={self._recording}")
+
+            recording_orientation = self.orientation
         
             if self._recording:
                 print("ABORT record_clip: already recording")
@@ -491,9 +499,14 @@ class CameraManager:
             print("STOP_RECORDING_START")
             self.picam2.stop_recording()
             print("STOP_RECORDING_DONE")
-
-
-            self.rotate_video_file(video_path)
+            
+            t0 = time.time()
+            
+            print("Rotate Start, flush = True") 
+            
+            path = self.rotate_video_file(path)
+            
+            print(f"Rotate End {time.time() - t0:.2f}s", flush = True)
             
             print("CAMERA_STOP_START")
             self.picam2.stop()
@@ -504,6 +517,16 @@ class CameraManager:
             print("CAMERA_START_START")
             self.picam2.start()
             print("CAMERA_START_DONE")
+
+            threading.Thread(
+            
+                target=self.rotate_video_file,
+            
+                args=(path, recording_orientation),
+            
+                daemon=True
+            
+            ).start()
             
             print(f"Recording finished: {path.name}")
             self.last_clip = path.name
@@ -937,10 +960,15 @@ def media():
 
 def build_media():
 
+    clips = [
+        f for f in camera.base_dir.glob("clip_*.mp4")
+        if "_rotating" not in f.stem
+    ]
+
     return sorted(
         list(camera.base_dir.glob("still_*.jpg")) +
         list(camera.base_dir.glob("motion_*.jpg")) +
-        list(camera.base_dir.glob("clip_*.mp4")),
+        clips,
         key=lambda p: p.stat().st_mtime,
         reverse=True
     )
@@ -1031,11 +1059,13 @@ def build_events():
 
     for f in camera.base_dir.glob("clip_*.mp4"):
     
+        if "_rotating" in f.stem:
+            continue
+    
         ts = media_timestamp(f)
     
         motion = camera.base_dir / f"motion_{ts}.jpg"
     
-        # Skip clips that already belong to a motion event
         if ts in used_motion:
             continue
     
@@ -1045,10 +1075,10 @@ def build_events():
             "type": "clip",
             "timestamp": ts,
             "image": f,
-            "clip": f, 
+            "clip": f,
             "sort": f.stat().st_mtime,
         })
-
+        
     events.sort(
         key=lambda e: e["sort"],
         reverse=True
