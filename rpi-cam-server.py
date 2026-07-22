@@ -183,6 +183,7 @@ class CameraManager:
         )
 
         self.picam2.configure(self.video_config)
+        print(self.video_config, flush=True)
         if base_dir is None:
 
             base_dir = Path(__file__).resolve().parent / "media"
@@ -341,6 +342,7 @@ class CameraManager:
         while self._preview_running:
             try:
                 raw = self.picam2.capture_array("lores")
+                print(f"raw shape: {raw.shape}", flush=True)
 
                 # Convert YUV420 -> BGR
                 frame = cv2.cvtColor(
@@ -348,6 +350,14 @@ class CameraManager:
                     cv2.COLOR_YUV2BGR_I420
                 )
 
+                width = self.video_config["lores"]["size"][0]
+                
+                height = self.video_config["lores"]["size"][1]
+                
+                frame = frame[:height, :width]
+                
+                print(f"frame shape: {frame.shape}", flush=True)
+                
                 if self._frame_counter % 100 == 0:
                     print(f"Preview thread sees orientation={self.orientation}")
 
