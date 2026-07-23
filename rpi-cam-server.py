@@ -535,36 +535,28 @@ class CameraManager:
             
             t0 = time.time()
             
-            print("Rotate Start, flush = True") 
+            print("Rotate Start", flush=True)
             
-            path = self.rotate_video_file(path)
+            t0 = time.time()
             
-            print(f"Rotate End {time.time() - t0:.2f}s", flush = True)
+            path = self.rotate_video_file(
+                path,
+                recording_orientation
+            )
             
-            print("CAMERA_STOP_START")
-            self.picam2.stop()
-            print("CAMERA_STOP_DONE")
-            
-            time.sleep(1)
-            
-            print("CAMERA_START_START")
-            self.picam2.start()
-            print("CAMERA_START_DONE")
-
-            threading.Thread(
-            
-                target=self.rotate_video_file,
-            
-                args=(path, recording_orientation),
-            
-                daemon=True
-            
-            ).start()
+            print(
+                f"Rotate End {time.time() - t0:.2f}s",
+                flush=True
+            )
             
             print(f"Recording finished: {path.name}")
+            
             self.last_clip = path.name
+            
             create_video_thumbnail(path)
+            
             return path
+            
             #encoder.close()   # release V4L2 encoder device
             #output.close()    # close ffmpeg process
 
