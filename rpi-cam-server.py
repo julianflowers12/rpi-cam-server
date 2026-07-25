@@ -13,6 +13,7 @@ import io
 import socket
 import uuid
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
 
 VERSION = "1.0"
 
@@ -28,7 +29,8 @@ from flask import (
     Response,
     redirect,
     render_template,
-    send_file
+    send_file,
+    url_for
 )
 
 from picamera2 import Picamera2
@@ -365,7 +367,6 @@ class CameraManager:
         while self._preview_running:
             try:
                 raw = self.picam2.capture_array("lores")
-                print(f"raw shape: {raw.shape}", flush=True)
 
                 # Convert YUV420 -> BGR
                 frame = cv2.cvtColor(
@@ -378,11 +379,8 @@ class CameraManager:
                 height = self.video_config["lores"]["size"][1]
                 
                 frame = frame[:height, :width]
-                
-                print(f"frame shape: {frame.shape}", flush=True)
-                
+                                
                 if self._frame_counter % 100 == 0:
-                    print(f"Preview thread sees orientation={self.orientation}")
 
 
                 # Rotate if required
@@ -692,6 +690,79 @@ app = Flask(__name__)
 camera = CameraManager()
 _boot.update({"step": "running", "percent": 100, "ready": True})
 _boot_ready_evt.set()
+
+from flask import Flask, request, url_for
+
+app = Flask(__name__)
+
+GALLERY_FILTERS = (
+    "date",
+    #"camera",
+    #"type",
+    #"sort",
+    #"page",
+)
+
+GALLERY_FILTERS = (
+    "date",
+    # Add future filters here:
+    # "type",
+    # "camera",
+)
+
+
+@app.context_processor
+def gallery_url_helpers():
+
+    def preserve_gallery_filters(url):
+        """
+        Add the current gallery filters to an existing URL.
+
+        This is useful because event.video is already a complete URL
+        such as /play/clip_20260723_135135.mp4.
+        """
+        parts = urlsplit(url)
+
+        query = dict(parse_qsl(parts.query))
+
+        for key in GALLERY_FILTERS:
+            value = request.args.get(key)
+
+            if value:
+                query[key] = value
+
+        return urlunsplit((
+            parts.scheme,
+            parts.netloc,
+            parts.path,
+            urlencode(query),
+            parts.fragment,
+        ))
+
+    def gallery_url(**changes):
+        """
+        Build a /gallery URL while retaining the current filters.
+        """
+        values = {
+            key: request.args.get(key)
+            for key in GALLERY_FILTERS
+            if request.args.get(key)
+        }
+
+        values.update(changes)
+
+        values = {
+            key: value
+            for key, value in values.items()
+            if value not in (None, "")
+        }
+
+        return url_for("gallery", **values)
+
+    return {
+        "preserve_gallery_filters": preserve_gallery_filters,
+        "gallery_url": gallery_url,
+    }
 
 
 INDEX_HTML = """
@@ -1184,7 +1255,11 @@ def gallery():
 
     media = build_media()
     events = build_events()
+    for index, event in enumerate(events):
+        event["index"] = index
     groups = build_groups(events)
+    selected_date = request.args.get("date", "")
+
     print("******** GALLERY CALLED ********")
     app.logger.warning(
         "MEDIA=%d EVENTS=%d GROUPS=%d",
@@ -1192,7 +1267,6 @@ def gallery():
         len(events),
         len(groups),
     )
-    selected_date = request.args.get("date", "")
     available_dates = sorted({
         media_timestamp(f)[:8]
         for f in media
@@ -1222,7 +1296,15 @@ def gallery():
             event["label"] = "📷 Still Image"
             event["thumb"] = f"/thumbs/{image.name}"
             event["full"] = f"/media/{image.name}"
-            event["video"] = None
+            event["video"] = (
+                url_for(
+                    "play_video",
+                    filename=clip.name,
+                    index=event["index"],
+                    date=selected_date or None,
+                )
+                if clip else None
+            )
     
         elif event["type"] == "motion":
     
@@ -1232,9 +1314,22 @@ def gallery():
     
             
             event["video"] = (
-                f"/play/{clip.name}"
+            
+                url_for(
+            
+                    "play_video",
+            
+                    filename=clip.name,
+            
+                    index=event["index"],
+            
+                    date=selected_date or None,
+            
+                )
+            
                 if clip else None
-            )    
+            
+            )
             
         else:      
     
@@ -1242,7 +1337,17 @@ def gallery():
             event["label"] = "🎥 Video clip"
             event["thumb"] = f"/thumbs/{clip.with_suffix('.jpg').name}"
             event["full"] = None
-            event["video"] = f"/play/{clip.name}"
+            event["video"] = url_for(
+            
+                "play_video",
+            
+                filename=clip.name,
+            
+                index=event["index"],
+            
+                date=selected_date or None,
+            
+            )
     
         event["image_name"] = image.name
         (
@@ -1260,55 +1365,74 @@ def gallery():
 
 @app.route("/play/<path:filename>")
 def play_video(filename):
+    selected_date = request.args.get("date")
+    index = request.args.get("index", type=int)
 
-    return f"""
-    <html>
-    <head>
+    events = build_events()
 
-    <style>
+    for i, event in enumerate(events):
+        event["index"] = i
 
-    body {{
-        background:#222;
-        color:white;
-        font-family:sans-serif;
-        text-align:center;
-        margin:20px;
-    }}
+    if selected_date:
+        back_url = url_for(
+            "gallery",
+            date=selected_date
+        )
+    else:
+        back_url = url_for("gallery")
 
-    video {{
-        width:95%;
-        max-width:900px;
-        border-radius:10px;
-        background:black;
-    }}
+    prev_url = None
+    next_url = None
+    
+    if index is not None:
+    
+        # Find previous event with a clip
+        i = index - 1
+        while i >= 0:
+            clip = events[i]["clip"]
+            if clip:
+                prev_url = url_for(
+                    "play_video",
+                    filename=clip.name,
+                    index=i,
+                    date=selected_date or None,
+                )
+                break
+            i -= 1
+    
+        # Find next event with a clip
+        i = index + 1
+        while i < len(events):
+            clip = events[i]["clip"]
+            if clip:
+                next_url = url_for(
+                    "play_video",
+                    filename=clip.name,
+                    index=i,
+                    date=selected_date or None,
+                )
+                break
+            i += 1
+        
+    print(f"index={index}")
+    print(f"prev_url={prev_url}")
+    print(f"next_url={next_url}")      
 
-    a {{
-        color:#6cf;
-        text-decoration:none;
-        font-size:18px;
-    }}
+    print("========== PLAY ==========")
+    print("filename =", filename)
+    print("index =", index)
+    print("prev_url =", prev_url)
+    print("next_url =", next_url)
 
-    </style>
+    print("==========================")    
 
-    </head>
-
-    <body>
-
-    <h2>{filename}</h2>
-
-    <video controls autoplay>
-
-        <source src="/media/{filename}" type="video/mp4">
-
-    </video>
-
-    <br><br>
-
-    <a href="/gallery">← Back to gallery</a>
-
-    </body>
-    </html>
-    """    
+    return render_template(
+        "play.html",
+        filename=filename,
+        back_url=back_url,
+        prev_url=prev_url,
+        next_url=next_url,
+    )
     
 @app.route("/api/record_clip", methods=["POST"])
 def api_record_clip():

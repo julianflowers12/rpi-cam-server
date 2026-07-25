@@ -1,0 +1,105 @@
+<!doctype html>
+<html>
+<head>
+
+<title>{{ filename }}</title>
+
+<style>
+
+body{
+    background:#222;
+    color:white;
+    font-family:sans-serif;
+    text-align:center;
+    margin:20px;
+}
+
+video{
+    width:95%;
+    max-width:900px;
+    border-radius:10px;
+    background:black;
+}
+
+.toolbar{
+    margin:20px 0;
+}
+
+.toolbar a{
+    color:#6cf;
+    text-decoration:none;
+    font-size:18px;
+    margin:0 20px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h2>{{ filename }}</h2>
+
+<video controls autoplay>
+
+    <source
+        src="{{ url_for('media_file', filename=filename) }}"
+        type="video/mp4">
+
+</video>
+
+<div class="toolbar">
+
+    {% if prev_url %}
+        <a href="{{ prev_url }}">← Previous</a>
+    {% endif %}
+
+    <a href="{{ back_url }}">Gallery</a>
+
+    {% if next_url %}
+        <a href="{{ next_url }}">Next →</a>
+    {% endif %}
+
+</div>
+
+<script>
+
+console.log("play.js loaded");
+
+window.addEventListener("keydown", function(event) {
+
+    console.log(event.key);
+
+    switch(event.key){
+
+        case "ArrowLeft":
+            event.preventDefault();
+            {% if prev_url %}
+            window.location = "{{ prev_url }}";
+            {% endif %}
+            break;
+
+        case "ArrowRight":
+            event.preventDefault();
+            {% if next_url %}
+            window.location = "{{ next_url }}";
+            {% endif %}
+            break;
+
+       case "g":
+       case "G":
+           window.location.href = "{{ back_url }}";
+           break;
+       
+       case "Backspace":
+           event.preventDefault();
+           window.location.href = "{{ back_url }}";
+           break;
+    }
+
+});
+
+</script>
+
+</body>
+</html>

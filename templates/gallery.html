@@ -80,7 +80,7 @@
 
 <div class="video-thumb">
 
-<a href="{{ event.video }}">
+<a href="{{ event.video }}{% if selected_date %}?date={{ selected_date }}{% endif %}">
 
 <img
     class="gallery-image"
@@ -298,16 +298,6 @@ document.addEventListener("keydown", function(e){
     }
 
 });
-
-</script>
-
-<div id="lightbox" class="lightbox">
-
-    <span class="close">&times;</span>
-
-    <img id="lightbox-img">
-
-</div>
 
 
 
