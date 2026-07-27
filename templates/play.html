@@ -54,6 +54,20 @@ video{
         <a href="{{ prev_url }}">← Previous</a>
     {% endif %}
 
+    <button type="button" onclick="favouriteEvent()">
+    
+    {% if is_favourite %}
+        
+    ⭐ Favourited
+        
+    {% else %}
+        
+    ☆ Favourite
+        
+    {% endif %}  
+      
+    </button>
+
     <a href="{{ back_url }}">Gallery</a>
 
     {% if next_url %}
@@ -98,6 +112,19 @@ window.addEventListener("keydown", function(event) {
     }
 
 });
+
+async function favouriteEvent(){
+
+    await fetch(
+        "/favourite/{{ filename }}",
+        {
+            method:"POST"
+        }
+    );
+
+    location.reload();
+
+}
 
 </script>
 

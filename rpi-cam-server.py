@@ -187,6 +187,7 @@ class CameraManager:
         self.picam2 = Picamera2()
         self.orientation = 0
         self.motion_triggers = 0
+        self._mjpeg_counter = 0
         self.video_config = self.picam2.create_video_configuration(
 
             main={
@@ -218,6 +219,7 @@ class CameraManager:
     # state
 
         self._lock = threading.Lock()
+        self._camera_lock = threading.RLock()
         self.last_still = None
         self._preview_frame = None
         self.last_motion_image = None
@@ -266,6 +268,8 @@ class CameraManager:
         self.picam2.start()
 
         self.start_preview()
+
+        self.encoder = H264Encoder(bitrate=5_000_000)
 
         
 
@@ -366,7 +370,14 @@ class CameraManager:
 
         while self._preview_running:
             try:
-                raw = self.picam2.capture_array("lores")
+                with self._camera_lock:
+                    raw = self.picam2.capture_array("lores")
+
+                print(
+                    f"{self._frame_counter} "
+                    f"{raw[0,0]} "
+                    f"{int(raw.mean())}"
+                )
 
                 # Convert YUV420 -> BGR
                 frame = cv2.cvtColor(
@@ -379,8 +390,6 @@ class CameraManager:
                 height = self.video_config["lores"]["size"][1]
                 
                 frame = frame[:height, :width]
-                                
-                if self._frame_counter % 100 == 0:
 
 
                 # Rotate if required
@@ -402,10 +411,27 @@ class CameraManager:
                         cv2.ROTATE_90_COUNTERCLOCKWISE
                     )
 
+                cv2.putText(
+                    frame,
+                    str(self._frame_counter),
+                    (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    1,
+                    (0, 255, 0),                        2,
+                )
+                     
+
                 with self._lock:
                     self._preview_frame = frame.copy()
 
                 self._frame_counter += 1
+                
+                if self._frame_counter % 100 == 0:
+                    print(
+                        self._frame_counter,
+                        frame.mean()
+                    )
+                
 
             except Exception as e:
                 print(f"Preview error: {e}")
@@ -421,10 +447,32 @@ class CameraManager:
                     frame = None
                 else:
                     frame = self._preview_frame.copy()
+
+                    
     
             if frame is None:
                 time.sleep(0.05)
                 continue
+
+            cv2.putText(
+                
+                frame,
+                
+                time.strftime("%H:%M:%S"),
+                
+                (10, 30),
+                
+                cv2.FONT_HERSHEY_SIMPLEX,
+                
+                1,
+                
+                (0, 255, 0),
+                
+                2,
+                
+            )
+                
+  
     
             ok, jpeg = cv2.imencode(
                 ".jpg",
@@ -434,10 +482,16 @@ class CameraManager:
     
             if not ok:
                 continue
+
+            self._mjpeg_counter += 1
+                
+            if self._mjpeg_counter % 100 == 0:
+                print(f"MJPEG {self._mjpeg_counter}", flush=True)    
     
             yield (
                 b"--frame\r\n"
-                b"Content-Type: image/jpeg\r\n\r\n"
+                b"Content-Type: image/jpeg\r\n"
+                + b"Content-Length: " + str(len(jpeg)).encode() + b"\r\n\r\n"
                 + jpeg.tobytes()
                 + b"\r\n"
             )
@@ -452,13 +506,14 @@ class CameraManager:
         path = self.base_dir / f"still_{ts}.jpg"
 
         try:
-            print("1")
-            request = self.picam2.capture_request()
-            print("2")
-            frame = request.make_array("main")
-            print("3")
-            request.release()
-            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+            with self._camera_lock:
+            
+                request = self.picam2.capture_request()
+                
+                frame = request.make_array("main")
+            
+                request.release()
+                frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
             if self.orientation == 90:
                 frame = cv2.rotate(
@@ -519,23 +574,29 @@ class CameraManager:
             path = self.base_dir / f"clip_{ts}.mp4"
             print(f"Recording started: {path.name} duration={duration}")
 
-            encoder = H264Encoder(bitrate=5_000_000)
             output = FfmpegOutput(str(path))
 
         
-            self.picam2.start_recording(encoder, output)
+            self.picam2.start_encoder(self.encoder, output)
             
-            time.sleep(duration)
+            try:
+                time.sleep(duration)
             
-            print("STOP_RECORDING_START")
-            self.picam2.stop_recording()
-            print("STOP_RECORDING_DONE")
+            finally: 
+                print("STOP_RECORDING_START")
+
+                self.picam2.stop_encoder()
+
+                print("STOP_RECORDING_DONE")
+
+                try:
+                    output.close()
+                except Exception:
+                    pass    
             
             t0 = time.time()
             
-            print("Rotate Start", flush=True)
             
-            t0 = time.time()
             
             path = self.rotate_video_file(
                 path,
@@ -1170,13 +1231,15 @@ def build_events():
 
         clip = camera.base_dir / f"clip_{ts}.mp4"
 
+        fav = (camera.base_dir / f"{ts}.fav").exists()
+
         events.append({
             "type": "motion",
             "timestamp": ts,
             "image": f,
             "clip": clip if clip.exists() else None,
             "sort": f.stat().st_mtime,
-            
+            "favourite": fav,
         })
 
         used_motion.add(ts)
@@ -1196,13 +1259,14 @@ def build_events():
             continue
     
         thumb = camera.base_dir / "thumbs" / f.with_suffix(".jpg").name
-    
+        fav = (camera.base_dir / f"{ts}.fav").exists()
         events.append({
             "type": "clip",
             "timestamp": ts,
             "image": f,
             "clip": f,
             "sort": f.stat().st_mtime,
+            "favourite": fav,
         })
         
     events.sort(
@@ -1367,7 +1431,7 @@ def gallery():
 def play_video(filename):
     selected_date = request.args.get("date")
     index = request.args.get("index", type=int)
-
+    is_favourite = filename.startswith("fav_")
     events = build_events()
 
     for i, event in enumerate(events):
@@ -1432,7 +1496,34 @@ def play_video(filename):
         back_url=back_url,
         prev_url=prev_url,
         next_url=next_url,
+        is_favourite=is_favourite,
     )
+
+@app.route("/favourite/<path:filename>", methods=["POST"])
+def favourite_event(filename):
+
+    clip = camera.base_dir / filename
+
+    if not clip.exists():
+        abort(404)
+
+    ts = clip.stem.replace("clip_", "").replace("fav_clip_", "")
+
+    files = [
+        camera.base_dir / f"clip_{ts}.mp4",
+        camera.base_dir / f"motion_{ts}.jpg",
+        camera.base_dir / "thumbs" / f"clip_{ts}.jpg",
+    ]
+
+    for path in files:
+
+        if not path.exists():
+            continue
+
+        new_name = "fav_" + path.name
+        path.rename(path.with_name(new_name))
+
+    return ("", 204)    
     
 @app.route("/api/record_clip", methods=["POST"])
 def api_record_clip():

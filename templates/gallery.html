@@ -125,6 +125,10 @@
                 &nbsp;&nbsp;🎥 10 sec video
             {% endif %}
 
+        {% if event.favourite %}
+        ⭐
+        {% endif %}    
+
         {% elif event.type == "clip" %}
 
             🎥 Manual recording
