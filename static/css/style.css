@@ -148,6 +148,40 @@ button:hover{
 
 }
 
+.card{
+
+    position: relative;
+
+}
+
+.fav-button{
+
+    position: absolute;
+
+    top: 10px;
+
+    right: 10px;
+
+    background: none;
+
+    border: none;
+
+    font-size: 1.4rem;
+
+    cursor: pointer;
+
+    padding: 0;
+
+    color: gold;
+
+}
+
+.fav-button:hover{
+
+    transform: scale(1.15);
+
+}
+
 
 
 .lightbox{

@@ -24,6 +24,24 @@
 
 </form>
 
+<div class="gallery-filter">
+
+<div class="gallery-filter">
+
+<a href="/gallery{% if selected_date %}?date={{ selected_date }}{% endif %}">
+    All
+</a>
+
+|
+
+<a href="/gallery?favourites=1{% if selected_date %}&date={{ selected_date }}{% endif %}">
+    ★ Favourites
+</a>
+
+</div>
+
+</div>
+
 <form method="post" action="/delete-selected">
 
 <div class="toolbar">
@@ -69,6 +87,13 @@
 
 
 <div class="card">
+
+<button
+    class="fav-button"
+    onclick="toggleFavourite('{{ event.timestamp }}', this)"
+    title="Favourite">
+{% if event.favourite %}★{% else %}☆{% endif %}
+</button>
 
 <div class="event-count">
     {{ group["items"]|length }}
@@ -125,9 +150,18 @@
                 &nbsp;&nbsp;🎥 10 sec video
             {% endif %}
 
-        {% if event.favourite %}
-        ⭐
-        {% endif %}    
+        <button
+              class="fav-button"
+              onclick="toggleFavourite('{{ event.timestamp }}', this)"
+              title="Toggle favourite">
+          
+          {% if event.favourite %}
+          ★
+          {% else %}
+          ☆
+          {% endif %}
+          
+          </button>  
 
         {% elif event.type == "clip" %}
 
@@ -180,6 +214,25 @@ function toggleAll(source){
 
     }
 
+}
+
+async function toggleFavourite(timestamp, button){
+
+    const r = await fetch(
+        "/api/favourite/" + timestamp,
+        {
+            method:"POST"
+        }
+    );
+
+    if(!r.ok){
+        return;
+    }
+
+    const data = await r.json();
+
+    button.textContent =
+        data.favourite ? "★" : "☆";
 }
 
 </script>

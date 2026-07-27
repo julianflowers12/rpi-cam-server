@@ -54,17 +54,18 @@ video{
         <a href="{{ prev_url }}">← Previous</a>
     {% endif %}
 
-    <button type="button" onclick="favouriteEvent()">
+    <button
+        class="fav-button"
+        onclick="toggleFavourite('{{ timestamp }}', this)"
+        title="Favourite">
     
-    {% if is_favourite %}
-        
-    ⭐ Favourited
-        
+    {% if favourite %}
+    ★
     {% else %}
-        
-    ☆ Favourite
-        
-    {% endif %}  
+    ☆
+    {% endif %}
+    
+    </button>
       
     </button>
 

@@ -172,7 +172,8 @@ def create_video_thumbnail(video_path):
     cap.release()
 
     return thumb_path
-    
+
+
 class CameraManager:
     """
     Handles:
@@ -271,7 +272,24 @@ class CameraManager:
 
         self.encoder = H264Encoder(bitrate=5_000_000)
 
+    def favourite_path(self, ts):
+        return self.base_dir / f"{ts}.fav"
         
+        
+    def is_favourite(self, ts):
+        return self.favourite_path(ts).exists()
+        
+        
+    def toggle_favourite(self, ts):
+        fav = self.favourite_path(ts)
+        
+        if fav.exists():
+            fav.unlink()
+            return False
+        
+        fav.touch()
+        return True
+                
 
     def rotate_video_file(self, video_path, angle):
         """
@@ -1211,7 +1229,10 @@ def build_events():
     # stills
 
     for f in camera.base_dir.glob("still_*.jpg"):
-    
+
+        ts = media_timestamp(f)
+        
+        fav = (camera.base_dir / f"{ts}.fav").exists()
 
         events.append({
             "type": "still",
@@ -1219,6 +1240,7 @@ def build_events():
             "image": f,
             "clip": None,
             "sort": f.stat().st_mtime,
+            "favourite": fav,
         
         })
 
@@ -1319,6 +1341,15 @@ def gallery():
 
     media = build_media()
     events = build_events()
+    favourites_only = (
+        request.args.get("favourites") == "1"
+    )
+    
+    if favourites_only:
+        events = [
+            e for e in events
+            if e["favourite"]
+        ]
     for index, event in enumerate(events):
         event["index"] = index
     groups = build_groups(events)
@@ -1498,6 +1529,16 @@ def play_video(filename):
         next_url=next_url,
         is_favourite=is_favourite,
     )
+
+@app.route("/api/favourite/<timestamp>", methods=["POST"])
+def api_favourite(timestamp):
+
+    favourite = camera.toggle_favourite(timestamp)
+
+    return jsonify({
+        "status": "ok",
+        "favourite": favourite
+    })    
 
 @app.route("/favourite/<path:filename>", methods=["POST"])
 def favourite_event(filename):
