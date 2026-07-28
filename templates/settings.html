@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h2>Camera Settings</h2>
+
+<table class="settings-table">
+
+<form action="/settings" method="POST">
+
+<table class="settings-table">
+
+<tr>
+    <td>Motion Area</td>
+
+    <td>
+        <input
+            type="number"
+            name="motion_area"
+            value="{{ settings.motion_area }}"
+            min="100"
+            max="10000"
+            step="100">
+    </td>
+
+</tr>
+
+<tr>
+    <td>Frames Required</td>
+    <td>{{ settings.motion_frames_required }}</td>
+</tr>
+
+<tr>
+    <td>Cooldown</td>
+    <td>{{ settings.motion_cooldown }} s</td>
+</tr>
+
+</table>
+
+<p>
+    <button type="submit">
+        Save
+    </button>
+</p>
+
+</form>
+
+<tr>
+    <td>Frames Required</td>
+    <td>{{ settings.motion_frames_required }}</td>
+</tr>
+
+<tr>
+    <td>Cooldown</td>
+    <td>{{ settings.motion_cooldown }} s</td>
+</tr>
+
+</table>
+
+{% endblock %}
