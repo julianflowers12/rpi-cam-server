@@ -14,6 +14,7 @@ import socket
 import uuid
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
+import json
 
 VERSION = "1.0"
 
@@ -217,6 +218,8 @@ class CameraManager:
 
         self.base_dir.mkdir(parents=True, exist_ok=True)  
 
+        self.settings_file = self.base_dir.parent / "settings.json"
+
     # state
 
         self._lock = threading.Lock()
@@ -271,6 +274,64 @@ class CameraManager:
         self.start_preview()
 
         self.encoder = H264Encoder(bitrate=5_000_000)
+
+    def get_camera_settings(self):
+        return {
+            "motion_area": self.motion_area,
+            "motion_frames_required": self.motion_frames_required,
+            "motion_cooldown": self.motion_cooldown,
+        }
+
+    def update_settings(self, form):
+
+        print("UPDATE SETTINGS CALLED")    
+        
+        self.motion_area = int(
+            form.get(
+                "motion_area",
+                self.motion_area
+            )
+        )
+        
+        self.motion_frames_required = int(
+            form.get(
+                "motion_frames_required",
+                self.motion_frames_required
+            )
+        )
+        
+        self.motion_cooldown = int(
+            form.get(
+                "motion_cooldown",
+                self.motion_cooldown
+            )
+        )
+
+        print(
+            self.motion_area,
+            self.motion_frames_required,
+            self.motion_cooldown
+        )
+
+        print("TYPE:", type(self))
+        print("HAS SAVE:", hasattr(self, "save_settings"))
+        print("CLASS HAS SAVE:", hasattr(CameraManager, "save_settings"))
+        print("DIR:", [x for x in dir(self) if "save" in x])
+        
+        
+        self.save_settings()  
+
+    def save_settings(self):
+          
+        settings = {
+            "motion_area": self.motion_area,
+            "motion_frames_required": self.motion_frames_required,
+            "motion_cooldown": self.motion_cooldown,
+        }
+          
+        with open(self.settings_file, "w") as f:
+            json.dump(settings, f, indent=4)      
+
 
     def favourite_path(self, ts):
         return self.base_dir / f"{ts}.fav"
@@ -1882,6 +1943,18 @@ def media_index():
     html.append("</ul>")
     return "".join(html)
 
+@app.route("/settings", methods=["GET", "POST"])
+def settings():
+
+    if request.method == "POST":
+        camera.update_settings(request.form)
+        return redirect(url_for("settings"))
+
+    return render_template(
+        "settings.html",
+        settings=camera.get_camera_settings()
+    )
+    
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "8000"))
     app.run(host="0.0.0.0", port=port, threaded=True)

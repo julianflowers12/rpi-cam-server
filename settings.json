@@ -1,0 +1,5 @@
+{
+    "motion_area": 300,
+    "motion_frames_required": 2,
+    "motion_cooldown": 20
+}
