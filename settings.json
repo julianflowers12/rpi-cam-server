@@ -6,5 +6,8 @@
     "contrast": 1.0,
     "saturation": 1.0,
     "sharpness": 1.0,
-    "exposure_value": -0.5
+    "exposure_value": -1.0,
+    "clip_duration": 15,
+    "preview_timeout": 0,
+    "battery_mode": false
 }

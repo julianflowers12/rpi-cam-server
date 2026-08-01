@@ -127,6 +127,47 @@
        </span>
    </div>
 
+   <h2>Battery Mode</h2>
+   
+   <div class="setting-row">
+   
+   <label>Battery Mode</label>
+   
+   <input
+       type="checkbox"
+       name="battery_mode"
+       {% if settings.battery_mode %}
+       checked
+       {% endif %}>
+   
+   </div>
+   
+   <div class="setting-row">
+   
+   <label>Preview Enabled</label>
+   
+   <input
+       type="checkbox"
+       name="preview_enabled"
+       {% if settings.preview_enabled %}
+       checked
+       {% endif %}>
+   
+   </div>
+   
+   <div class="setting-row">
+   
+   <label>Clip Duration</label>
+   
+   <input
+       type="number"
+       min="5"
+       max="60"
+       name="clip_duration"
+       value="{{ settings.clip_duration }}">
+   
+   </div>
+
 </div>
 
 <p>

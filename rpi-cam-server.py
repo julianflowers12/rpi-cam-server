@@ -185,6 +185,7 @@ class CameraManager:
     """
 
     def __init__(self, base_dir=None):
+        self.preview_clients = 0
         self._frame_counter = 0
         self.picam2 = Picamera2()
         self.orientation = 0
@@ -245,6 +246,7 @@ class CameraManager:
         self.clip_duration = 15
         self.preview_timeout = 0
         self.battery_mode = False
+        self.preview_enabled = True
         if self.settings_file.exists():
         
             try:
@@ -327,6 +329,10 @@ class CameraManager:
         self.picam2.start()
 
         self.start_preview()
+
+        if self.preview_enabled:
+        
+            self.start_preview()
 
         self.encoder = H264Encoder(bitrate=5_000_000)
 
@@ -454,7 +460,7 @@ class CameraManager:
         self.clip_duration = 20
                 
                     # Power saving
-                
+        self.preview_enabled = False        
         self.preview_timeout = 60
         self.battery_mode = True
                 
@@ -582,12 +588,6 @@ class CameraManager:
                 with self._camera_lock:
                     raw = self.picam2.capture_array("lores")
 
-                print(
-                    f"{self._frame_counter} "
-                    f"{raw[0,0]} "
-                    f"{int(raw.mean())}"
-                )
-
                 # Convert YUV420 -> BGR
                 frame = cv2.cvtColor(
                     raw,
@@ -633,6 +633,10 @@ class CameraManager:
                 with self._lock:
                     self._preview_frame = frame.copy()
 
+                if self.preview_clients == 0 and self.battery_mode:
+                    
+                    time.sleep(0.3)    
+
                 self._frame_counter += 1
                 
                 if self._frame_counter % 100 == 0:
@@ -650,63 +654,67 @@ class CameraManager:
 
 
     def mjpeg_generator(self):
-        while True:
-            with self._lock:
-                if self._preview_frame is None:
-                    frame = None
-                else:
-                    frame = self._preview_frame.copy()
+        self.preview_clients += 1
+        try:
+            while True:
+                with self._lock:
+                    if self._preview_frame is None:
+                        frame = None
+                    else:
+                        frame = self._preview_frame.copy()
 
                     
     
-            if frame is None:
-                time.sleep(0.05)
-                continue
+                if frame is None:
+                    time.sleep(0.05)
+                    continue
 
-            cv2.putText(
+                cv2.putText(
                 
-                frame,
+                    frame,
                 
-                time.strftime("%H:%M:%S"),
+                    time.strftime("%H:%M:%S"),
                 
-                (10, 30),
+                    (10, 30),
                 
-                cv2.FONT_HERSHEY_SIMPLEX,
+                    cv2.FONT_HERSHEY_SIMPLEX,
                 
-                1,
+                    1,
                 
-                (0, 255, 0),
+                    (0, 255, 0),
                 
-                2,
+                    2,
                 
-            )
+                )
                 
   
     
-            ok, jpeg = cv2.imencode(
-                ".jpg",
-                frame,
-                [int(cv2.IMWRITE_JPEG_QUALITY), 80]
-            )
+                ok, jpeg = cv2.imencode(
+                    ".jpg",
+                    frame,
+                    [int(cv2.IMWRITE_JPEG_QUALITY), 80]
+                )
     
-            if not ok:
-                continue
+                if not ok:
+                    continue
 
-            self._mjpeg_counter += 1
+                self._mjpeg_counter += 1
                 
-            if self._mjpeg_counter % 100 == 0:
-                print(f"MJPEG {self._mjpeg_counter}", flush=True)    
+                if self._mjpeg_counter % 100 == 0:
+                    print(f"MJPEG {self._mjpeg_counter}", flush=True)    
     
-            yield (
-                b"--frame\r\n"
-                b"Content-Type: image/jpeg\r\n"
-                + b"Content-Length: " + str(len(jpeg)).encode() + b"\r\n\r\n"
-                + jpeg.tobytes()
-                + b"\r\n"
-            )
+                yield (
+                    b"--frame\r\n"
+                    b"Content-Type: image/jpeg\r\n"
+                    + b"Content-Length: " + str(len(jpeg)).encode() + b"\r\n\r\n"
+                    + jpeg.tobytes()
+                    + b"\r\n"
+                )
     
-            time.sleep(0.03)      # ~30 fps
-                
+                time.sleep(0.03)      # ~30 fps
+        finally:
+            self.preview_clients -= 1
+            
 
     # ---------- Stills (from preview, no pipeline stop) ----------
 
