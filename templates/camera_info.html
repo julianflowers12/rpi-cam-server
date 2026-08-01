@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1>Camera Diagnostics</h1>
+
+<h2>Current Metadata</h2>
+
+<table>
+
+{% for key, value in metadata.items() %}
+
+<tr>
+
+<td><b>{{ key }}</b></td>
+
+<td>{{ value }}</td>
+
+</tr>
+
+{% endfor %}
+
+</table>
+
+<hr>
+
+<h2>Supported Controls</h2>
+
+<table>
+
+{% for key, value in controls.items() %}
+
+<tr>
+
+<td><b>{{ key }}</b></td>
+
+<td>{{ value }}</td>
+
+</tr>
+
+{% endfor %}
+
+</table>
+
+{% endblock %}

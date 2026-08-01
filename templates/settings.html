@@ -2,59 +2,141 @@
 
 {% block content %}
 
-<h2>Camera Settings</h2>
+<h1>⚙ Camera Settings</h1>
 
-<table class="settings-table">
+<form method="POST">
 
-<form action="/settings" method="POST">
+<div class="settings-section">
 
-<table class="settings-table">
+    <h2>Motion Detection</h2>
 
-<tr>
-    <td>Motion Area</td>
-
-    <td>
+    <div class="setting-row">
+        <label>Motion Area</label>
         <input
             type="number"
             name="motion_area"
-            value="{{ settings.motion_area }}"
-            min="100"
-            max="10000"
-            step="100">
-    </td>
+            value="{{ settings.motion_area }}">
+    </div>
 
-</tr>
+    <div class="setting-row">
+        <label>Frames Required</label>
+        <input
+            type="number"
+            name="motion_frames_required"
+            value="{{ settings.motion_frames_required }}">
+    </div>
 
-<tr>
-    <td>Frames Required</td>
-    <td>{{ settings.motion_frames_required }}</td>
-</tr>
+    <div class="setting-row">
+        <label>Cooldown (seconds)</label>
+        <input
+            type="number"
+            name="motion_cooldown"
+            value="{{ settings.motion_cooldown }}">
+    </div>
 
-<tr>
-    <td>Cooldown</td>
-    <td>{{ settings.motion_cooldown }} s</td>
-</tr>
+</div>
 
-</table>
+<hr>
+
+<div class="settings-section">
+
+   <h2>Image Quality</h2>
+   
+   <div class="setting-row">
+       <label>Brightness</label>
+   
+       <input
+           type="range"
+           name="brightness"
+           min="-1"
+           max="1"
+           step="0.1"
+           value="{{ settings.brightness }}"
+           oninput="brightnessValue.textContent=this.value">
+   
+       <span id="brightnessValue">
+           {{ settings.brightness }}
+       </span>
+   </div>
+   
+   <div class="setting-row">
+       <label>Contrast</label>
+   
+       <input
+           type="range"
+           name="contrast"
+           min="0"
+           max="3"
+           step="0.1"
+           value="{{ settings.contrast }}"
+           oninput="contrastValue.textContent=this.value">
+   
+       <span id="contrastValue">
+           {{ settings.contrast }}
+       </span>
+   </div>
+   
+   <div class="setting-row">
+       <label>Saturation</label>
+   
+       <input
+           type="range"
+           name="saturation"
+           min="0"
+           max="3"
+           step="0.1"
+           value="{{ settings.saturation }}"
+           oninput="saturationValue.textContent=this.value">
+   
+       <span id="saturationValue">
+           {{ settings.saturation }}
+       </span>
+   </div>
+   
+   <div class="setting-row">
+       <label>Sharpness</label>
+   
+       <input
+           type="range"
+           name="sharpness"
+           min="0"
+           max="5"
+           step="0.1"
+           value="{{ settings.sharpness }}"
+           oninput="sharpnessValue.textContent=this.value">
+   
+       <span id="sharpnessValue">
+           {{ settings.sharpness }}
+       </span>
+   </div>
+
+   <div class="setting-row">
+       <label>Exposure Compensation</label>
+   
+       <input
+           type="range"
+           name="exposure_value"
+           min="-8"
+           max="8"
+           step="0.5"
+           value="{{ settings.exposure_value }}"
+           oninput="exposureValue.textContent=this.value">
+   
+       <span id="exposureValue">
+           {{ settings.exposure_value }}
+       </span>
+   </div>
+
+</div>
 
 <p>
-    <button type="submit">
-        Save
-    </button>
+
+<button type="submit">
+💾 Save Settings
+</button>
+
 </p>
 
 </form>
-
-<tr>
-    <td>Frames Required</td>
-    <td>{{ settings.motion_frames_required }}</td>
-</tr>
-
-<tr>
-    <td>Cooldown</td>
-    <td>{{ settings.motion_cooldown }} s</td>
-</tr>
-
-</table>
 
 {% endblock %}

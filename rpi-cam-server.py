@@ -234,9 +234,62 @@ class CameraManager:
         self._recording = False
         self.last_clip = None
         self._motion_enabled = False
-        self.motion_area = 800
+        self.motion_area = 250
         self.motion_frames_required = 2
         self.motion_cooldown = 20
+        self.brightness = 0.0
+        self.contrast = 1.0
+        self.saturation = 1.0
+        self.sharpness = 1.0
+        self.exposure_value = 0.0
+        self.clip_duration = 15
+        self.preview_timeout = 0
+        self.battery_mode = False
+        if self.settings_file.exists():
+        
+            try:
+        
+                with open(self.settings_file, "r") as f:
+                    settings = json.load(f)
+        
+                self.motion_area = settings.get(
+                    "motion_area",
+                    self.motion_area
+                )
+        
+                self.motion_frames_required = settings.get(
+                    "motion_frames_required",
+                    self.motion_frames_required
+                )
+        
+                self.motion_cooldown = settings.get(
+                    "motion_cooldown",
+                    self.motion_cooldown
+                )
+
+                self.brightness = settings.get(
+                    "brightness",
+                    self.brightness
+                )
+
+                self.clip_duration = settings.get(
+                    "clip_duration",
+                    self.clip_duration
+                )
+                
+                self.preview_timeout = settings.get(
+                    "preview_timeout",
+                    self.preview_timeout
+                )
+                
+                self.battery_mode = settings.get(
+                    "battery_mode",
+                    self.battery_mode
+                )
+        
+            except Exception as e:
+                print(f"Couldn't load settings: {e}")
+        
 
         self._motion_thread = None
 
@@ -269,6 +322,8 @@ class CameraManager:
         if clips:
             self.last_clip = str(clips[0].name)
 
+        self.apply_camera_settings()
+
         self.picam2.start()
 
         self.start_preview()
@@ -280,7 +335,29 @@ class CameraManager:
             "motion_area": self.motion_area,
             "motion_frames_required": self.motion_frames_required,
             "motion_cooldown": self.motion_cooldown,
+            "brightness": self.brightness,
+            "contrast": self.contrast,
+            "saturation": self.saturation,
+            "sharpness": self.sharpness,
+            "exposure_value": self.exposure_value,
         }
+
+    def apply_camera_settings(self):
+        print(
+            "Applying:",
+            self.brightness,
+            self.contrast,
+            self.saturation,
+            self.sharpness
+        )
+        with self._camera_lock:
+            self.picam2.set_controls({
+                "Brightness": self.brightness,
+                "Contrast": self.contrast,
+                "Saturation": self.saturation,
+                "Sharpness": self.sharpness,
+                "ExposureValue": self.exposure_value,
+            })    
 
     def update_settings(self, form):
 
@@ -307,30 +384,83 @@ class CameraManager:
             )
         )
 
-        print(
-            self.motion_area,
-            self.motion_frames_required,
-            self.motion_cooldown
+        self.brightness = float(
+            form.get("brightness", self.brightness)
+        )
+        
+        self.contrast = float(
+            form.get("contrast", self.contrast)
+        )
+        
+        self.saturation = float(
+            form.get("saturation", self.saturation)
+        )
+        
+        self.sharpness = float(
+            form.get("sharpness", self.sharpness)
+        )
+        
+        self.exposure_value = float(
+            form.get("exposure_value", self.exposure_value)
         )
 
-        print("TYPE:", type(self))
-        print("HAS SAVE:", hasattr(self, "save_settings"))
-        print("CLASS HAS SAVE:", hasattr(CameraManager, "save_settings"))
-        print("DIR:", [x for x in dir(self) if "save" in x])
         
+        self.save_settings()
         
-        self.save_settings()  
-
+        try:
+            self.apply_camera_settings()
+            
+        except Exception as e:
+            print(f"Couldn't apply camera settings: {e}")
+            
     def save_settings(self):
           
         settings = {
             "motion_area": self.motion_area,
             "motion_frames_required": self.motion_frames_required,
             "motion_cooldown": self.motion_cooldown,
+        
+            "brightness": self.brightness,
+            "contrast": self.contrast,
+            "saturation": self.saturation,
+            "sharpness": self.sharpness,
+            "exposure_value": self.exposure_value,
+            "clip_duration": self.clip_duration,
+            "preview_timeout": self.preview_timeout,
+            "battery_mode": self.battery_mode,
         }
           
         with open(self.settings_file, "w") as f:
-            json.dump(settings, f, indent=4)      
+            json.dump(settings, f, indent=4)  
+
+    def greenhouse_profile(self):
+                
+                    # Motion detection
+                
+        self.motion_area = 400
+        self.motion_frames_required = 2
+        self.motion_cooldown = 5
+                
+                    # Image tuning
+                
+        self.brightness = 0.2
+        self.contrast = 1.3
+        self.saturation = 1.0
+        self.sharpness = 1.2
+        self.exposure_value = 1.0
+                
+                    # Recording
+                
+        self.clip_duration = 20
+                
+                    # Power saving
+                
+        self.preview_timeout = 60
+        self.battery_mode = True
+                
+        self.save_settings()
+                
+        self.apply_camera_settings()            
 
 
     def favourite_path(self, ts):
@@ -1954,6 +2084,17 @@ def settings():
         "settings.html",
         settings=camera.get_camera_settings()
     )
+
+@app.route("/camera-info")
+def camera_info():
+
+    metadata = camera.picam2.capture_metadata()
+
+    return render_template(
+        "camera_info.html",
+        controls=camera.picam2.camera_controls,
+        metadata=metadata,
+    )    
     
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "8000"))

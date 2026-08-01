@@ -1,5 +1,10 @@
 {
-    "motion_area": 300,
-    "motion_frames_required": 2,
-    "motion_cooldown": 20
+    "motion_area": 200,
+    "motion_frames_required": 3,
+    "motion_cooldown": 20,
+    "brightness": 0.1,
+    "contrast": 1.0,
+    "saturation": 1.0,
+    "sharpness": 1.0,
+    "exposure_value": -0.5
 }
