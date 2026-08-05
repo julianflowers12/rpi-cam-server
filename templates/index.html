@@ -61,6 +61,8 @@ index.html{% extends "base.html" %}
 
 </div>
 
+
+
 <div class="card" id="health-card">
 
 <h2 id="health-title">🟢 Camera Healthy</h2>
@@ -86,6 +88,18 @@ index.html{% extends "base.html" %}
 <span id="recording-state">-</span>
 
 </p>
+
+</div>
+
+<div class="status-card">
+
+<h3>Profile</h3>
+
+{% if profile == "Greenhouse" %}
+<p>🌿 Greenhouse</p>
+{% else %}
+<p>🛠 Development</p>
+{% endif %}
 
 </div>
 

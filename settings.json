@@ -1,12 +1,12 @@
 {
-    "motion_area": 200,
+    "motion_area": 600,
     "motion_frames_required": 3,
     "motion_cooldown": 20,
-    "brightness": 0.1,
+    "brightness": 0.2,
     "contrast": 1.0,
     "saturation": 1.0,
-    "sharpness": 1.0,
-    "exposure_value": -1.0,
+    "sharpness": 2.2,
+    "exposure_value": 0.0,
     "clip_duration": 15,
     "preview_timeout": 0,
     "battery_mode": false

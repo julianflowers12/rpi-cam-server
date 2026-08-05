@@ -283,6 +283,11 @@ class CameraManager:
                     "preview_timeout",
                     self.preview_timeout
                 )
+
+                self.clip_duration = settings.get(
+                    "clip_duration",
+                    self.clip_duration
+                )
                 
                 self.battery_mode = settings.get(
                     "battery_mode",
@@ -346,7 +351,13 @@ class CameraManager:
             "saturation": self.saturation,
             "sharpness": self.sharpness,
             "exposure_value": self.exposure_value,
-        }
+            "battery_mode": self.battery_mode,
+            
+            "preview_enabled": self.preview_enabled,
+            
+            "clip_duration": self.clip_duration,
+            
+            }
 
     def apply_camera_settings(self):
         print(
@@ -410,6 +421,17 @@ class CameraManager:
             form.get("exposure_value", self.exposure_value)
         )
 
+        self.clip_duration = int(
+            form.get(
+                "clip_duration",
+                self.clip_duration
+            )
+        )
+
+        self.battery_mode = "battery_mode" in form
+        
+        self.preview_enabled = "preview_enabled" in form
+
         
         self.save_settings()
         
@@ -443,7 +465,7 @@ class CameraManager:
                 
                     # Motion detection
                 
-        self.motion_area = 400
+        self.motion_area = 300
         self.motion_frames_required = 2
         self.motion_cooldown = 5
                 
@@ -457,16 +479,17 @@ class CameraManager:
                 
                     # Recording
                 
-        self.clip_duration = 20
+        self.clip_duration = 15
                 
                     # Power saving
         self.preview_enabled = False        
         self.preview_timeout = 60
         self.battery_mode = True
-                
+
+        self.apply_camera_settings()        
         self.save_settings()
                 
-        self.apply_camera_settings()            
+                   
 
 
     def favourite_path(self, ts):
@@ -644,6 +667,20 @@ class CameraManager:
                         self._frame_counter,
                         frame.mean()
                     )
+
+                if self.battery_mode:
+                    
+                        if self.preview_clients == 0:
+                    
+                            time.sleep(0.30)
+                    
+                        else:
+                    
+                            time.sleep(0.03)
+                    
+                else:
+                    
+                    time.sleep(0.03)    
                 
 
             except Exception as e:
@@ -926,12 +963,23 @@ class CameraManager:
                 motion_frame_count >= self.motion_frames_required
                 and now > cool_down_until
             ):
+                metadata = self.picam2.capture_metadata()
+                
+                event_info = {
+                    "time": datetime.now().isoformat(),
+                    "largest_area": largest_area,
+                    "motion_frames": motion_frame_count,
+                    "exposure_us": metadata.get("ExposureTime"),
+                    "analogue_gain": metadata.get("AnalogueGain"),
+                    "digital_gain": metadata.get("DigitalGain"),
+                    "lux": metadata.get("Lux"),
+                }
                 self.last_motion = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 print("recording")
                 self.motion_triggers += 1
                 # Fire a 30s recording in background
                 threading.Thread(
-                    target=self.record_clip, args=(10,), daemon=True
+                    target=self.record_clip, args=(self.clip_duration,), daemon=True
                 ).start()
     
                 ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -1281,7 +1329,10 @@ INDEX_HTML = """
 def index():
     return render_template(
         "index.html",
-        title="Garden Wildlife"
+        title="Garden Wildlife",
+        settings=camera.get_camera_settings(),
+        
+        profile="Greenhouse" if camera.battery_mode else "Development",
     )
 
 @app.route("/api/info")
@@ -2102,7 +2153,14 @@ def camera_info():
         "camera_info.html",
         controls=camera.picam2.camera_controls,
         metadata=metadata,
-    )    
+    )  
+
+@app.route("/greenhouse-profile", methods=["POST"])
+def greenhouse_profile():
+
+    camera.greenhouse_profile()
+
+    return redirect(url_for("settings"))      
     
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "8000"))
