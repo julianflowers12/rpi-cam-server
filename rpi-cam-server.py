@@ -19,8 +19,6 @@ import json
 VERSION = "1.0"
 
 
-
-
 from flask import (
     Flask,
     jsonify,
@@ -31,7 +29,7 @@ from flask import (
     redirect,
     render_template,
     send_file,
-    url_for
+    url_for,
 )
 
 from picamera2 import Picamera2
@@ -43,6 +41,7 @@ import numpy as np
 
 # ---------------- Boot status / progress ----------------
 from threading import Event
+
 _boot = {"step": "starting", "percent": 0, "ready": False, "errors": []}
 _boot_ready_evt = Event()
 
@@ -65,6 +64,7 @@ def get_device_uuid():
 
     return device_uuid
 
+
 def create_thumbnail(image_path):
     thumb_dir = image_path.parent / "thumbs"
     thumb_dir.mkdir(exist_ok=True)
@@ -77,6 +77,7 @@ def create_thumbnail(image_path):
 
     return thumb_path
 
+
 def save_image(image_path, frame):
     """
     Save an image and automatically create its thumbnail.
@@ -85,12 +86,10 @@ def save_image(image_path, frame):
     create_thumbnail(image_path)
     return image_path
 
+
 def format_timestamp(ts):
     dt = datetime.strptime(ts, "%Y%m%d_%H%M%S")
-    return (
-        dt.strftime("%d %b %Y"),
-        dt.strftime("%H:%M:%S")
-    )
+    return (dt.strftime("%d %b %Y"), dt.strftime("%H:%M:%S"))
 
 
 def newest_media():
@@ -99,11 +98,9 @@ def newest_media():
     newest_type = None
 
     candidates = [
-
         ("Still", camera.last_still),
         ("Motion", camera.last_motion_image),
         ("Clip", camera.last_clip),
-
     ]
 
     for media_type, filename in candidates:
@@ -115,10 +112,7 @@ def newest_media():
 
             ts = filename.split("_", 1)[1].split(".")[0]
 
-            dt = datetime.strptime(
-                ts,
-                "%Y%m%d_%H%M%S"
-            )
+            dt = datetime.strptime(ts, "%Y%m%d_%H%M%S")
 
             if newest is None or dt > newest:
 
@@ -129,6 +123,7 @@ def newest_media():
             pass
 
     return newest, newest_type
+
 
 def friendly_age(dt):
 
@@ -146,9 +141,11 @@ def friendly_age(dt):
     if seconds < 86400:
         return f"{seconds // 3600} hr ago"
 
-    return f"{seconds // 86400} day(s) ago"        
+    return f"{seconds // 86400} day(s) ago"
+
 
 import subprocess
+
 
 def create_video_thumbnail(video_path):
 
@@ -175,6 +172,33 @@ def create_video_thumbnail(video_path):
     return thumb_path
 
 
+import traceback
+
+...
+
+
+def _run_worker(self, name, target, *args, **kwargs):
+    """
+    Run a worker function forever without allowing exceptions
+    to kill the thread.
+    """
+
+    print(f"{name} started", flush=True)
+
+    while True:
+
+        try:
+            target(*args, **kwargs)
+
+        except Exception:
+
+            print(f"{name} crashed", flush=True)
+
+            traceback.print_exc()
+
+            time.sleep(1)
+
+
 class CameraManager:
     """
     Handles:
@@ -192,21 +216,13 @@ class CameraManager:
         self.motion_triggers = 0
         self._mjpeg_counter = 0
         self.video_config = self.picam2.create_video_configuration(
-
             main={
-
-                "size": (1280, 720),      # recording stream
-
+                "size": (1280, 720),  # recording stream
             },
-
             lores={
-
-                "size": (320, 240),       # preview stream
-
+                "size": (320, 240),  # preview stream
                 "format": "YUV420",
-
             },
-
         )
 
         self.picam2.configure(self.video_config)
@@ -217,11 +233,11 @@ class CameraManager:
 
         self.base_dir = Path(base_dir)
 
-        self.base_dir.mkdir(parents=True, exist_ok=True)  
+        self.base_dir.mkdir(parents=True, exist_ok=True)
 
         self.settings_file = self.base_dir.parent / "settings.json"
 
-    # state
+        # state
 
         self._lock = threading.Lock()
         self._camera_lock = threading.RLock()
@@ -248,55 +264,36 @@ class CameraManager:
         self.battery_mode = False
         self.preview_enabled = True
         if self.settings_file.exists():
-        
+
             try:
-        
+
                 with open(self.settings_file, "r") as f:
                     settings = json.load(f)
-        
-                self.motion_area = settings.get(
-                    "motion_area",
-                    self.motion_area
-                )
-        
+
+                self.motion_area = settings.get("motion_area", self.motion_area)
+
                 self.motion_frames_required = settings.get(
-                    "motion_frames_required",
-                    self.motion_frames_required
+                    "motion_frames_required", self.motion_frames_required
                 )
-        
+
                 self.motion_cooldown = settings.get(
-                    "motion_cooldown",
-                    self.motion_cooldown
+                    "motion_cooldown", self.motion_cooldown
                 )
 
-                self.brightness = settings.get(
-                    "brightness",
-                    self.brightness
-                )
+                self.brightness = settings.get("brightness", self.brightness)
 
-                self.clip_duration = settings.get(
-                    "clip_duration",
-                    self.clip_duration
-                )
-                
+                self.clip_duration = settings.get("clip_duration", self.clip_duration)
+
                 self.preview_timeout = settings.get(
-                    "preview_timeout",
-                    self.preview_timeout
+                    "preview_timeout", self.preview_timeout
                 )
 
-                self.clip_duration = settings.get(
-                    "clip_duration",
-                    self.clip_duration
-                )
-                
-                self.battery_mode = settings.get(
-                    "battery_mode",
-                    self.battery_mode
-                )
-        
+                self.clip_duration = settings.get("clip_duration", self.clip_duration)
+
+                self.battery_mode = settings.get("battery_mode", self.battery_mode)
+
             except Exception as e:
                 print(f"Couldn't load settings: {e}")
-        
 
         self._motion_thread = None
 
@@ -304,28 +301,19 @@ class CameraManager:
         self._motion_stop_evt = threading.Event()
 
         # Recover latest media after a reboot
-        
-        stills = sorted(
-            self.base_dir.glob("still_*.jpg"),
-            reverse=True
-        )
-        
-        motions = sorted(
-            self.base_dir.glob("motion_*.jpg"),
-            reverse=True
-        )
-        
-        clips = sorted(
-            self.base_dir.glob("clip_*.mp4"),
-            reverse=True
-        )
-        
+
+        stills = sorted(self.base_dir.glob("still_*.jpg"), reverse=True)
+
+        motions = sorted(self.base_dir.glob("motion_*.jpg"), reverse=True)
+
+        clips = sorted(self.base_dir.glob("clip_*.mp4"), reverse=True)
+
         if stills:
             self.last_still = str(stills[0].name)
-        
+
         if motions:
             self.last_motion_image = str(motions[0].name)
-        
+
         if clips:
             self.last_clip = str(clips[0].name)
 
@@ -336,7 +324,7 @@ class CameraManager:
         self.start_preview()
 
         if self.preview_enabled:
-        
+
             self.start_preview()
 
         self.encoder = H264Encoder(bitrate=5_000_000)
@@ -352,102 +340,67 @@ class CameraManager:
             "sharpness": self.sharpness,
             "exposure_value": self.exposure_value,
             "battery_mode": self.battery_mode,
-            
             "preview_enabled": self.preview_enabled,
-            
             "clip_duration": self.clip_duration,
-            
-            }
+        }
 
     def apply_camera_settings(self):
         print(
-            "Applying:",
-            self.brightness,
-            self.contrast,
-            self.saturation,
-            self.sharpness
+            "Applying:", self.brightness, self.contrast, self.saturation, self.sharpness
         )
         with self._camera_lock:
-            self.picam2.set_controls({
-                "Brightness": self.brightness,
-                "Contrast": self.contrast,
-                "Saturation": self.saturation,
-                "Sharpness": self.sharpness,
-                "ExposureValue": self.exposure_value,
-            })    
+            self.picam2.set_controls(
+                {
+                    "Brightness": self.brightness,
+                    "Contrast": self.contrast,
+                    "Saturation": self.saturation,
+                    "Sharpness": self.sharpness,
+                    "ExposureValue": self.exposure_value,
+                }
+            )
 
     def update_settings(self, form):
 
-        print("UPDATE SETTINGS CALLED")    
-        
-        self.motion_area = int(
-            form.get(
-                "motion_area",
-                self.motion_area
-            )
-        )
-        
+        print("UPDATE SETTINGS CALLED")
+
+        self.motion_area = int(form.get("motion_area", self.motion_area))
+
         self.motion_frames_required = int(
-            form.get(
-                "motion_frames_required",
-                self.motion_frames_required
-            )
-        )
-        
-        self.motion_cooldown = int(
-            form.get(
-                "motion_cooldown",
-                self.motion_cooldown
-            )
+            form.get("motion_frames_required", self.motion_frames_required)
         )
 
-        self.brightness = float(
-            form.get("brightness", self.brightness)
-        )
-        
-        self.contrast = float(
-            form.get("contrast", self.contrast)
-        )
-        
-        self.saturation = float(
-            form.get("saturation", self.saturation)
-        )
-        
-        self.sharpness = float(
-            form.get("sharpness", self.sharpness)
-        )
-        
-        self.exposure_value = float(
-            form.get("exposure_value", self.exposure_value)
-        )
+        self.motion_cooldown = int(form.get("motion_cooldown", self.motion_cooldown))
 
-        self.clip_duration = int(
-            form.get(
-                "clip_duration",
-                self.clip_duration
-            )
-        )
+        self.brightness = float(form.get("brightness", self.brightness))
+
+        self.contrast = float(form.get("contrast", self.contrast))
+
+        self.saturation = float(form.get("saturation", self.saturation))
+
+        self.sharpness = float(form.get("sharpness", self.sharpness))
+
+        self.exposure_value = float(form.get("exposure_value", self.exposure_value))
+
+        self.clip_duration = int(form.get("clip_duration", self.clip_duration))
 
         self.battery_mode = "battery_mode" in form
-        
+
         self.preview_enabled = "preview_enabled" in form
 
-        
         self.save_settings()
-        
+
         try:
             self.apply_camera_settings()
-            
+
         except Exception as e:
             print(f"Couldn't apply camera settings: {e}")
-            
+
     def save_settings(self):
-          
+
         settings = {
             "motion_area": self.motion_area,
             "motion_frames_required": self.motion_frames_required,
             "motion_cooldown": self.motion_cooldown,
-        
             "brightness": self.brightness,
             "contrast": self.contrast,
             "saturation": self.saturation,
@@ -457,109 +410,104 @@ class CameraManager:
             "preview_timeout": self.preview_timeout,
             "battery_mode": self.battery_mode,
         }
-          
+
         with open(self.settings_file, "w") as f:
-            json.dump(settings, f, indent=4)  
+            json.dump(settings, f, indent=4)
 
     def greenhouse_profile(self):
-                
-                    # Motion detection
-                
+
+        # Motion detection
+
         self.motion_area = 300
         self.motion_frames_required = 2
         self.motion_cooldown = 5
-                
-                    # Image tuning
-                
+
+        # Image tuning
+
         self.brightness = 0.2
         self.contrast = 1.3
         self.saturation = 1.0
         self.sharpness = 1.2
         self.exposure_value = 1.0
-                
-                    # Recording
-                
+
+        # Recording
+
         self.clip_duration = 15
-                
-                    # Power saving
-        self.preview_enabled = False        
+
+        # Power saving
+        self.preview_enabled = False
         self.preview_timeout = 60
         self.battery_mode = True
 
-        self.apply_camera_settings()        
+        self.apply_camera_settings()
         self.save_settings()
-                
-                   
-
 
     def favourite_path(self, ts):
         return self.base_dir / f"{ts}.fav"
-        
-        
+
     def is_favourite(self, ts):
         return self.favourite_path(ts).exists()
-        
-        
+
     def toggle_favourite(self, ts):
         fav = self.favourite_path(ts)
-        
+
         if fav.exists():
             fav.unlink()
             return False
-        
+
         fav.touch()
         return True
-                
 
     def rotate_video_file(self, video_path, angle):
         """
         Rotate an MP4 file to match self.orientation.
-    
+
         The original file is replaced only after FFmpeg succeeds.
         """
-    
+
         if angle == 0:
             return video_path
-    
+
         video_path = Path(video_path)
         rotated_path = video_path.with_name(
             f"{video_path.stem}_rotating{video_path.suffix}"
         )
-    
+
         if angle == 90:
             video_filter = "transpose=clock"
-    
+
         elif angle == 180:
             video_filter = "hflip,vflip"
-    
+
         elif angle == 270:
             video_filter = "transpose=cclock"
-    
+
         else:
-            raise ValueError(
-                f"Unsupported orientation: {angle}"
-            )
-    
+            raise ValueError(f"Unsupported orientation: {angle}")
+
         command = [
             "ffmpeg",
             "-y",
-            "-i", str(video_path),
-            "-vf", video_filter,
-    
+            "-i",
+            str(video_path),
+            "-vf",
+            video_filter,
             # Re-encode the video after rotation
-            "-c:v", "libx264",
-            "-preset", "veryfast",
-            "-crf", "23",
-    
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "23",
             # Preserve audio if a clip ever contains it
-            "-c:a", "copy",
-    
+            "-c:a",
+            "copy",
             # Improve browser playback
-            "-movflags", "+faststart",
-    
+            "-movflags",
+            "+faststart",
             str(rotated_path),
         ]
-    
+
         try:
             subprocess.run(
                 command,
@@ -568,28 +516,22 @@ class CameraManager:
                 stderr=subprocess.PIPE,
                 text=True,
             )
-    
+
             rotated_path.replace(video_path)
-            
+
             create_video_thumbnail(video_path)
-            
-            print(
-                f"Background rotation finished in {time.time()-t0:.2f}s",
-                flush=True
-            )
-    
+
+            print(f"Background rotation finished in {time.time()-t0:.2f}s", flush=True)
+
             return video_path
-    
+
         except subprocess.CalledProcessError as e:
             rotated_path.unlink(missing_ok=True)
-    
-            print(
-                "Video rotation failed:",
-                e.stderr
-            )
-    
+
+            print("Video rotation failed:", e.stderr)
+
             return video_path
-            
+
     # ---------- Preview ----------
 
     def start_preview(self):
@@ -598,11 +540,10 @@ class CameraManager:
                 return
             self._preview_running = True
 
-        #self.picam2.start()
-       # 
+        # self.picam2.start()
+        #
         t = threading.Thread(target=self._preview_loop, daemon=True)
         t.start()
-                
 
     def _preview_loop(self):
 
@@ -612,36 +553,23 @@ class CameraManager:
                     raw = self.picam2.capture_array("lores")
 
                 # Convert YUV420 -> BGR
-                frame = cv2.cvtColor(
-                    raw,
-                    cv2.COLOR_YUV2BGR_I420
-                )
+                frame = cv2.cvtColor(raw, cv2.COLOR_YUV2BGR_I420)
 
                 width = self.video_config["lores"]["size"][0]
-                
-                height = self.video_config["lores"]["size"][1]
-                
-                frame = frame[:height, :width]
 
+                height = self.video_config["lores"]["size"][1]
+
+                frame = frame[:height, :width]
 
                 # Rotate if required
                 if self.orientation == 90:
-                    frame = cv2.rotate(
-                        frame,
-                        cv2.ROTATE_90_CLOCKWISE
-                    )
+                    frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
 
                 elif self.orientation == 180:
-                    frame = cv2.rotate(
-                        frame,
-                        cv2.ROTATE_180
-                    )
+                    frame = cv2.rotate(frame, cv2.ROTATE_180)
 
                 elif self.orientation == 270:
-                    frame = cv2.rotate(
-                        frame,
-                        cv2.ROTATE_90_COUNTERCLOCKWISE
-                    )
+                    frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
                 cv2.putText(
                     frame,
@@ -649,46 +577,39 @@ class CameraManager:
                     (10, 30),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     1,
-                    (0, 255, 0),                        2,
+                    (0, 255, 0),
+                    2,
                 )
-                     
 
                 with self._lock:
                     self._preview_frame = frame.copy()
 
                 if self.preview_clients == 0 and self.battery_mode:
-                    
-                    time.sleep(0.3)    
+
+                    time.sleep(0.3)
 
                 self._frame_counter += 1
-                
+
                 if self._frame_counter % 100 == 0:
-                    print(
-                        self._frame_counter,
-                        frame.mean()
-                    )
+                    print(self._frame_counter, frame.mean())
 
                 if self.battery_mode:
-                    
-                        if self.preview_clients == 0:
-                    
-                            time.sleep(0.30)
-                    
-                        else:
-                    
-                            time.sleep(0.03)
-                    
+
+                    if self.preview_clients == 0:
+
+                        time.sleep(0.30)
+
+                    else:
+
+                        time.sleep(0.03)
+
                 else:
-                    
-                    time.sleep(0.03)    
-                
+
+                    time.sleep(0.03)
 
             except Exception as e:
                 print(f"Preview error: {e}")
                 time.sleep(1)
-
-
-
 
     def mjpeg_generator(self):
         self.preview_clients += 1
@@ -700,58 +621,45 @@ class CameraManager:
                     else:
                         frame = self._preview_frame.copy()
 
-                    
-    
                 if frame is None:
                     time.sleep(0.05)
                     continue
 
                 cv2.putText(
-                
                     frame,
-                
                     time.strftime("%H:%M:%S"),
-                
                     (10, 30),
-                
                     cv2.FONT_HERSHEY_SIMPLEX,
-                
                     1,
-                
                     (0, 255, 0),
-                
                     2,
-                
                 )
-                
-  
-    
+
                 ok, jpeg = cv2.imencode(
-                    ".jpg",
-                    frame,
-                    [int(cv2.IMWRITE_JPEG_QUALITY), 80]
+                    ".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80]
                 )
-    
+
                 if not ok:
                     continue
 
                 self._mjpeg_counter += 1
-                
+
                 if self._mjpeg_counter % 100 == 0:
-                    print(f"MJPEG {self._mjpeg_counter}", flush=True)    
-    
+                    print(f"MJPEG {self._mjpeg_counter}", flush=True)
+
                 yield (
                     b"--frame\r\n"
                     b"Content-Type: image/jpeg\r\n"
-                    + b"Content-Length: " + str(len(jpeg)).encode() + b"\r\n\r\n"
+                    + b"Content-Length: "
+                    + str(len(jpeg)).encode()
+                    + b"\r\n\r\n"
                     + jpeg.tobytes()
                     + b"\r\n"
                 )
-    
-                time.sleep(0.03)      # ~30 fps
+
+                time.sleep(0.03)  # ~30 fps
         finally:
             self.preview_clients -= 1
-            
 
     # ---------- Stills (from preview, no pipeline stop) ----------
 
@@ -761,32 +669,23 @@ class CameraManager:
 
         try:
             with self._camera_lock:
-            
+
                 request = self.picam2.capture_request()
-                
+
                 frame = request.make_array("main")
-            
+
                 request.release()
                 frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
             if self.orientation == 90:
-                frame = cv2.rotate(
-                    frame,
-                    cv2.ROTATE_90_CLOCKWISE
-                )
-            
+                frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
+
             elif self.orientation == 180:
-                frame = cv2.rotate(
-                    frame,
-                    cv2.ROTATE_180
-                )
-            
+                frame = cv2.rotate(frame, cv2.ROTATE_180)
+
             elif self.orientation == 270:
-                frame = cv2.rotate(
-                    frame,
-                    cv2.ROTATE_90_COUNTERCLOCKWISE
-                )
-                
+                frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
             print("4")
             save_image(path, frame)
             print("5")
@@ -795,6 +694,7 @@ class CameraManager:
 
         except Exception as e:
             raise RuntimeError(f"Unable to capture still frame: {e}")
+
     # ---------- 30 s clip ----------
 
     def start_recording_async(self, duration=30):
@@ -805,7 +705,6 @@ class CameraManager:
             name="record-thread",
         ).start()
 
-
     def record_clip(self, duration: int = 30) -> Optional[Path]:
         """
         Record a clip of `duration` seconds to MP4 via ffmpeg.
@@ -815,11 +714,11 @@ class CameraManager:
             print(f"ENTER record_clip: _recording={self._recording}")
 
             recording_orientation = self.orientation
-        
+
             if self._recording:
                 print("ABORT record_clip: already recording")
                 return None
-        
+
             self._recording = True
             print("SET _recording=True")
 
@@ -830,13 +729,12 @@ class CameraManager:
 
             output = FfmpegOutput(str(path))
 
-        
             self.picam2.start_encoder(self.encoder, output)
-            
+
             try:
                 time.sleep(duration)
-            
-            finally: 
+
+            finally:
                 print("STOP_RECORDING_START")
 
                 self.picam2.stop_encoder()
@@ -846,53 +744,36 @@ class CameraManager:
                 try:
                     output.close()
                 except Exception:
-                    pass    
-            
-            t0 = time.time()
-            
-            
-            
-            path = self.rotate_video_file(
-                path,
-                recording_orientation
-            )
-            
-            print(
-                f"Rotate End {time.time() - t0:.2f}s",
-                flush=True
-            )
-            
-            print(f"Recording finished: {path.name}")
-            
-            self.last_clip = path.name
-            
-            create_video_thumbnail(path)
-            
-            return path
-            
-            #encoder.close()   # release V4L2 encoder device
-            #output.close()    # close ffmpeg process
+                    pass
 
-            
+            t0 = time.time()
+
+            path = self.rotate_video_file(path, recording_orientation)
+
+            print(f"Rotate End {time.time() - t0:.2f}s", flush=True)
+
+            print(f"Recording finished: {path.name}")
+
+            self.last_clip = path.name
+
+            create_video_thumbnail(path)
+
+            return path
+
+            # encoder.close()   # release V4L2 encoder device
+            # output.close()    # close ffmpeg process
+
         except Exception as e:
             print(f"Recording error: {e}")
-            
-              #  print("Camera restarted")
+
+            #  print("Camera restarted")
 
         finally:
             print("FINALLY reached")
-        
+
             with self._record_lock:
                 self._recording = False
                 print("SET _recording=False")
-
-
-
-
-
-
-
-
 
     # ---------- Motion detection ----------
 
@@ -910,104 +791,111 @@ class CameraManager:
         self._motion_stop_evt.set()
 
     def _motion_loop(self):
-        print("enabled")
+        print("enabled", flush=True)
         prev_gray = None
         cool_down_until = 0
         motion_frame_count = 0
 
         while not self._motion_stop_evt.is_set():
-            with self._lock:
-                frame = (
-                    None
-                    if self._preview_frame is None
-                    else self._preview_frame.copy()
-                )
-
-            if frame is None:
-                time.sleep(0.1)
-                continue
-
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            gray = cv2.GaussianBlur(gray, (21, 21), 0)
-
-            if prev_gray is None:
-                prev_gray = gray
-                time.sleep(0.1)
-                continue
-
-            diff = cv2.absdiff(prev_gray, gray)
-            thresh = cv2.threshold(diff, 25, 255, cv2.THRESH_BINARY)[1]
-            thresh = cv2.dilate(thresh, None, iterations=2)
-            contours, _ = cv2.findContours(
-                thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-            )
-
-            motion_detected = any(
-                cv2.contourArea(c) > self.motion_area
-                for c in contours
-            )
-            
-            if motion_detected:
-                motion_frame_count += 1
-            else:
-                motion_frame_count = 0
-
-            now = time.time()
-            if motion_detected:
-                print(
-                    f"detected now={now:.0f} "
-                    f"cooldown={cool_down_until:.0f} "
-                    f"recording={self._recording}"
-                )
-            if (
-                motion_frame_count >= self.motion_frames_required
-                and now > cool_down_until
-            ):
-                metadata = self.picam2.capture_metadata()
-                
-                event_info = {
-                    "time": datetime.now().isoformat(),
-                    "largest_area": largest_area,
-                    "motion_frames": motion_frame_count,
-                    "exposure_us": metadata.get("ExposureTime"),
-                    "analogue_gain": metadata.get("AnalogueGain"),
-                    "digital_gain": metadata.get("DigitalGain"),
-                    "lux": metadata.get("Lux"),
-                }
-                self.last_motion = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                print("recording")
-                self.motion_triggers += 1
-                # Fire a 30s recording in background
-                threading.Thread(
-                    target=self.record_clip, args=(self.clip_duration,), daemon=True
-                ).start()
-    
-                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                
-                motion_path = (
-                    self.base_dir /
-                    f"motion_{ts}.jpg"
-                )
-                
+            try:
                 with self._lock:
                     frame = (
-                        None if self._preview_frame is None
-                        else self._preview_frame.copy()
+                        None if self._preview_frame is None else self._preview_frame.copy()
                     )
+
+                if frame is None:
+                    time.sleep(0.1)
+                    continue
+
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                gray = cv2.GaussianBlur(gray, (21, 21), 0)
+
+                if prev_gray is None:
+                    prev_gray = gray
+                    time.sleep(0.1)
+                    continue
+
+                diff = cv2.absdiff(prev_gray, gray)
+                thresh = cv2.threshold(diff, 25, 255, cv2.THRESH_BINARY)[1]
+                thresh = cv2.dilate(thresh, None, iterations=2)
+                contours, _ = cv2.findContours(
+                    thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+                )
+
+                largest_area = max((cv2.contourArea(c) for c in contours), default=0)
+
+                motion_detected = largest_area > self.motion_area
+
+                if motion_detected:
+                    motion_frame_count += 1
+                else:
+                    motion_frame_count = 0
+
+                now = time.time()
+                if motion_detected:
+                    print(
+                        f"detected now={now:.0f} "
+                        f"cooldown={cool_down_until:.0f} "
+                        f"recording={self._recording}"
+                    )
+                if (
+                    motion_frame_count >= self.motion_frames_required
+                    and now > cool_down_until
+                ):
+                    metadata = self.picam2.capture_metadata()
+
+                    event_info = {
+                        "time": datetime.now().isoformat(),
+                        "largest_area": largest_area,
+                        "motion_frames": motion_frame_count,
+                        "exposure_us": metadata.get("ExposureTime"),
+                        "analogue_gain": metadata.get("AnalogueGain"),
+                        "digital_gain": metadata.get("DigitalGain"),
+                        "lux": metadata.get("Lux"),
+                    }
+                    self.last_motion = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    print("recording")
+                    self.motion_triggers += 1
+                    # Fire a 30s recording in background
+                    threading.Thread(
+                        target=self.record_clip, args=(self.clip_duration,), daemon=True
+                    ).start()
+
+                    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+                    motion_path = self.base_dir / f"motion_{ts}.jpg"
+
+                    with self._lock:
+                        frame = (
+                            None
+                            if self._preview_frame is None
+                            else self._preview_frame.copy()
+                        )
+
+                    if frame is not None:
+                        save_image(motion_path, frame)
+                        self.last_motion_image = motion_path.name
+
+                    cool_down_until = now + self.motion_cooldown
+                    print(f"NEW_COOLDOWN {cool_down_until:.0f}")
+
+                #
+
+
                 
-                if frame is not None:
-                    save_image(motion_path, frame)
-                    self.last_motion_image = motion_path.name
+                prev_gray = gray
 
+                time.sleep(0.1)
 
-                cool_down_until = now + self.motion_cooldown
-                print(f"NEW_COOLDOWN {cool_down_until:.0f}")                       
-                    
-                    
+                
 
-            #
-            prev_gray = gray
-            time.sleep(0.1)
+            except Exception:
+                print(
+                    "Motion detector exception",
+                    flush=True
+                )
+                traceback.print_exc()
+                time.sleep(1)
 
 
 # ---------------- Flask app ----------------
@@ -1023,10 +911,10 @@ app = Flask(__name__)
 
 GALLERY_FILTERS = (
     "date",
-    #"camera",
-    #"type",
-    #"sort",
-    #"page",
+    # "camera",
+    # "type",
+    # "sort",
+    # "page",
 )
 
 GALLERY_FILTERS = (
@@ -1057,13 +945,15 @@ def gallery_url_helpers():
             if value:
                 query[key] = value
 
-        return urlunsplit((
-            parts.scheme,
-            parts.netloc,
-            parts.path,
-            urlencode(query),
-            parts.fragment,
-        ))
+        return urlunsplit(
+            (
+                parts.scheme,
+                parts.netloc,
+                parts.path,
+                urlencode(query),
+                parts.fragment,
+            )
+        )
 
     def gallery_url(**changes):
         """
@@ -1078,9 +968,7 @@ def gallery_url_helpers():
         values.update(changes)
 
         values = {
-            key: value
-            for key, value in values.items()
-            if value not in (None, "")
+            key: value for key, value in values.items() if value not in (None, "")
         }
 
         return url_for("gallery", **values)
@@ -1324,54 +1212,35 @@ INDEX_HTML = """
 """
 
 
-
 @app.route("/")
 def index():
     return render_template(
         "index.html",
         title="Garden Wildlife",
         settings=camera.get_camera_settings(),
-        
         profile="Greenhouse" if camera.battery_mode else "Development",
     )
+
 
 @app.route("/api/info")
 def api_info():
 
-    return jsonify({
-
-        "uuid": get_device_uuid(),
-
-        "device_type": "camera",
-
-        "hostname": socket.gethostname(),
-
-        "name": socket.gethostname(),
-
-        "version": VERSION,
-
-        "api_version": 1,
-
-        "capabilities": [
-
-            "preview",
-            "still",
-            "video",
-            "motion",
-            "gallery"
-
-        ]
-
-    })    
+    return jsonify(
+        {
+            "uuid": get_device_uuid(),
+            "device_type": "camera",
+            "hostname": socket.gethostname(),
+            "name": socket.gethostname(),
+            "version": VERSION,
+            "api_version": 1,
+            "capabilities": ["preview", "still", "video", "motion", "gallery"],
+        }
+    )
 
 
-    
 @app.route("/preview")
 def preview():
-    return render_template(
-        "preview.html",
-        title="Live Preview"
-    )
+    return render_template("preview.html", title="Live Preview")
 
 
 @app.route("/api/capture_still", methods=["POST"])
@@ -1385,58 +1254,42 @@ def stream_mjpeg():
     return Response(
         camera.mjpeg_generator(),
         mimetype="multipart/x-mixed-replace; boundary=frame",
-        headers={
-            "Cache-Control": "no-cache, no-store, must-revalidate"
-        },
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
     )
+
 
 @app.route("/thumbs/<path:filename>")
 def thumbnails(filename):
-    return send_from_directory(
-        camera.base_dir / "thumbs",
-        filename
-    )
+    return send_from_directory(camera.base_dir / "thumbs", filename)
+
 
 @app.route("/api/media")
 def media():
     files = []
 
-    for f in sorted(
-        camera.base_dir.glob("still_*.jpg"),
-        reverse=True
-    ):
-        files.append({
-            "type": "image",
-            "file": f.name,
-            "thumb": f"/thumbs/{f.name}"
-        })
+    for f in sorted(camera.base_dir.glob("still_*.jpg"), reverse=True):
+        files.append({"type": "image", "file": f.name, "thumb": f"/thumbs/{f.name}"})
 
     return jsonify(files)
 
+
 def build_media():
 
-    clips = [
-        f for f in camera.base_dir.glob("clip_*.mp4")
-        if "_rotating" not in f.stem
-    ]
+    clips = [f for f in camera.base_dir.glob("clip_*.mp4") if "_rotating" not in f.stem]
 
     return sorted(
-        list(camera.base_dir.glob("still_*.jpg")) +
-        list(camera.base_dir.glob("motion_*.jpg")) +
-        clips,
+        list(camera.base_dir.glob("still_*.jpg"))
+        + list(camera.base_dir.glob("motion_*.jpg"))
+        + clips,
         key=lambda p: p.stat().st_mtime,
-        reverse=True
+        reverse=True,
     )
+
 
 def media_timestamp(f):
 
-    return (
-        f.stem
-         .replace("still_", "")
-         .replace("motion_", "")
-         .replace("clip_", "")
-    )
-    
+    return f.stem.replace("still_", "").replace("motion_", "").replace("clip_", "")
+
 
 @app.route("/api/orientation", methods=["POST"])
 def api_orientation():
@@ -1448,29 +1301,23 @@ def api_orientation():
     try:
         angle = int(body.get("orientation"))
     except (TypeError, ValueError):
-        return jsonify({
-            "status": "error",
-            "message": "Invalid orientation"
-        }), 400
+        return jsonify({"status": "error", "message": "Invalid orientation"}), 400
 
     if angle not in (0, 90, 180, 270):
-        return jsonify({
-            "status": "error",
-            "message": "Orientation must be 0, 90, 180 or 270"
-        }), 400
+        return (
+            jsonify(
+                {"status": "error", "message": "Orientation must be 0, 90, 180 or 270"}
+            ),
+            400,
+        )
 
     camera.orientation = angle
 
-    print(
-        f"API set orientation to {camera.orientation}",
-        flush=True
-    )
+    print(f"API set orientation to {camera.orientation}", flush=True)
 
-    return jsonify({
-        "status": "ok",
-        "orientation": camera.orientation
-    })
-    
+    return jsonify({"status": "ok", "orientation": camera.orientation})
+
+
 def build_events():
 
     events = []
@@ -1481,19 +1328,19 @@ def build_events():
     for f in camera.base_dir.glob("still_*.jpg"):
 
         ts = media_timestamp(f)
-        
+
         fav = (camera.base_dir / f"{ts}.fav").exists()
 
-        events.append({
-            "type": "still",
-            "timestamp": media_timestamp(f),
-            "image": f,
-            "clip": None,
-            "sort": f.stat().st_mtime,
-            "favourite": fav,
-        
-        })
-
+        events.append(
+            {
+                "type": "still",
+                "timestamp": media_timestamp(f),
+                "image": f,
+                "clip": None,
+                "sort": f.stat().st_mtime,
+                "favourite": fav,
+            }
+        )
 
     # motion
 
@@ -1505,48 +1352,46 @@ def build_events():
 
         fav = (camera.base_dir / f"{ts}.fav").exists()
 
-        events.append({
-            "type": "motion",
-            "timestamp": ts,
-            "image": f,
-            "clip": clip if clip.exists() else None,
-            "sort": f.stat().st_mtime,
-            "favourite": fav,
-        })
+        events.append(
+            {
+                "type": "motion",
+                "timestamp": ts,
+                "image": f,
+                "clip": clip if clip.exists() else None,
+                "sort": f.stat().st_mtime,
+                "favourite": fav,
+            }
+        )
 
         used_motion.add(ts)
 
-    
-
     for f in camera.base_dir.glob("clip_*.mp4"):
-    
+
         if "_rotating" in f.stem:
             continue
-    
+
         ts = media_timestamp(f)
-    
+
         motion = camera.base_dir / f"motion_{ts}.jpg"
-    
+
         if ts in used_motion:
             continue
-    
+
         thumb = camera.base_dir / "thumbs" / f.with_suffix(".jpg").name
         fav = (camera.base_dir / f"{ts}.fav").exists()
-        events.append({
-            "type": "clip",
-            "timestamp": ts,
-            "image": f,
-            "clip": f,
-            "sort": f.stat().st_mtime,
-            "favourite": fav,
-        })
-        
-    events.sort(
-        key=lambda e: e["sort"],
-        reverse=True
-    )
-   
-    
+        events.append(
+            {
+                "type": "clip",
+                "timestamp": ts,
+                "image": f,
+                "clip": f,
+                "sort": f.stat().st_mtime,
+                "favourite": fav,
+            }
+        )
+
+    events.sort(key=lambda e: e["sort"], reverse=True)
+
     return events
 
 
@@ -1560,10 +1405,7 @@ def build_groups(events, gap_seconds=90):
 
         if current is None:
 
-            current = {
-                "sort": event["sort"],
-                "items": [event]
-            }
+            current = {"sort": event["sort"], "items": [event]}
 
             groups.append(current)
 
@@ -1575,31 +1417,22 @@ def build_groups(events, gap_seconds=90):
 
         else:
 
-            current = {
-                "sort": event["sort"],
-                "items": [event]
-            }
+            current = {"sort": event["sort"], "items": [event]}
 
             groups.append(current)
 
-    return groups    
-    
+    return groups
+
+
 @app.route("/gallery")
-
-
 def gallery():
 
     media = build_media()
     events = build_events()
-    favourites_only = (
-        request.args.get("favourites") == "1"
-    )
-    
+    favourites_only = request.args.get("favourites") == "1"
+
     if favourites_only:
-        events = [
-            e for e in events
-            if e["favourite"]
-        ]
+        events = [e for e in events if e["favourite"]]
     for index, event in enumerate(events):
         event["index"] = index
     groups = build_groups(events)
@@ -1612,32 +1445,23 @@ def gallery():
         len(events),
         len(groups),
     )
-    available_dates = sorted({
-        media_timestamp(f)[:8]
-        for f in media
-            
-    }, reverse=True)
+    available_dates = sorted({media_timestamp(f)[:8] for f in media}, reverse=True)
 
     if selected_date:
-    
+
         groups = [
-    
-            g for g in groups
-    
-            if g["items"][0]["timestamp"].startswith(selected_date)
-    
-        ] 
+            g for g in groups if g["items"][0]["timestamp"].startswith(selected_date)
+        ]
 
     for group in groups:
 
         event = group["items"][0]
 
-    
         image = event["image"]
         clip = event["clip"]
-    
+
         if event["type"] == "still":
-    
+
             event["label"] = "📷 Still Image"
             event["thumb"] = f"/thumbs/{image.name}"
             event["full"] = f"/media/{image.name}"
@@ -1648,57 +1472,41 @@ def gallery():
                     index=event["index"],
                     date=selected_date or None,
                 )
-                if clip else None
+                if clip
+                else None
             )
-    
+
         elif event["type"] == "motion":
-    
+
             event["label"] = "🚶 Wildlife Event"
             event["thumb"] = f"/thumbs/{image.name}"
             event["full"] = f"/media/{image.name}"
-    
-            
+
             event["video"] = (
-            
                 url_for(
-            
                     "play_video",
-            
                     filename=clip.name,
-            
                     index=event["index"],
-            
                     date=selected_date or None,
-            
                 )
-            
-                if clip else None
-            
+                if clip
+                else None
             )
-            
-        else:      
-    
-    
+
+        else:
+
             event["label"] = "🎥 Video clip"
             event["thumb"] = f"/thumbs/{clip.with_suffix('.jpg').name}"
             event["full"] = None
             event["video"] = url_for(
-            
                 "play_video",
-            
                 filename=clip.name,
-            
                 index=event["index"],
-            
                 date=selected_date or None,
-            
             )
-    
+
         event["image_name"] = image.name
-        (
-        event["date_text"], event["time_text"]) = format_timestamp(
-            event["timestamp"]
-        )
+        (event["date_text"], event["time_text"]) = format_timestamp(event["timestamp"])
 
     return render_template(
         "gallery.html",
@@ -1707,6 +1515,7 @@ def gallery():
         available_dates=available_dates,
         selected_date=selected_date,
     )
+
 
 @app.route("/play/<path:filename>")
 def play_video(filename):
@@ -1719,18 +1528,15 @@ def play_video(filename):
         event["index"] = i
 
     if selected_date:
-        back_url = url_for(
-            "gallery",
-            date=selected_date
-        )
+        back_url = url_for("gallery", date=selected_date)
     else:
         back_url = url_for("gallery")
 
     prev_url = None
     next_url = None
-    
+
     if index is not None:
-    
+
         # Find previous event with a clip
         i = index - 1
         while i >= 0:
@@ -1744,7 +1550,7 @@ def play_video(filename):
                 )
                 break
             i -= 1
-    
+
         # Find next event with a clip
         i = index + 1
         while i < len(events):
@@ -1758,10 +1564,10 @@ def play_video(filename):
                 )
                 break
             i += 1
-        
+
     print(f"index={index}")
     print(f"prev_url={prev_url}")
-    print(f"next_url={next_url}")      
+    print(f"next_url={next_url}")
 
     print("========== PLAY ==========")
     print("filename =", filename)
@@ -1769,7 +1575,7 @@ def play_video(filename):
     print("prev_url =", prev_url)
     print("next_url =", next_url)
 
-    print("==========================")    
+    print("==========================")
 
     return render_template(
         "play.html",
@@ -1780,15 +1586,14 @@ def play_video(filename):
         is_favourite=is_favourite,
     )
 
+
 @app.route("/api/favourite/<timestamp>", methods=["POST"])
 def api_favourite(timestamp):
 
     favourite = camera.toggle_favourite(timestamp)
 
-    return jsonify({
-        "status": "ok",
-        "favourite": favourite
-    })    
+    return jsonify({"status": "ok", "favourite": favourite})
+
 
 @app.route("/favourite/<path:filename>", methods=["POST"])
 def favourite_event(filename):
@@ -1814,8 +1619,9 @@ def favourite_event(filename):
         new_name = "fav_" + path.name
         path.rename(path.with_name(new_name))
 
-    return ("", 204)    
-    
+    return ("", 204)
+
+
 @app.route("/api/record_clip", methods=["POST"])
 def api_record_clip():
     body = request.get_json(silent=True) or {}
@@ -1823,9 +1629,8 @@ def api_record_clip():
 
     camera.start_recording_async(duration)
 
-    return jsonify({
-        "status": "recording"
-    })
+    return jsonify({"status": "recording"})
+
 
 @app.route("/api/motion", methods=["POST"])
 def api_motion():
@@ -1845,6 +1650,7 @@ def api_motion():
 def media_file(filename):
     return send_from_directory(camera.base_dir, filename)
 
+
 @app.route("/delete/<filename>", methods=["POST"])
 def delete_media(filename):
 
@@ -1853,7 +1659,7 @@ def delete_media(filename):
     if not path.exists():
         abort(404)
 
-    thumbs_dir = camera.base_dir / "thumbs"    
+    thumbs_dir = camera.base_dir / "thumbs"
 
     # Delete matching clip if this is a motion image
     if filename.startswith("motion_"):
@@ -1863,13 +1669,13 @@ def delete_media(filename):
         clip = camera.base_dir / f"clip_{ts}.mp4"
 
         motion_thumb = thumbs_dir / filename
-        
+
         if motion_thumb.exists():
-        
+
             motion_thumb.unlink()
-        
+
         clip_thumb = thumbs_dir / f"clip_{ts}.jpg"
-        
+
         if clip_thumb.exists():
             clip_thumb.unlink()
 
@@ -1877,16 +1683,17 @@ def delete_media(filename):
             clip.unlink()
 
         elif filename.startswith("still_"):
-        
+
             still_thumb = thumbs_dir / filename
-        
+
             if still_thumb.exists():
-        
+
                 still_thumb.unlink()
     path.unlink()
 
     return redirect("/gallery")
-        
+
+
 @app.route("/delete-selected/", methods=["POST"])
 def delete_selected():
 
@@ -1931,21 +1738,17 @@ def delete_selected():
 
     return redirect("/gallery")
 
+
 @app.route("/download-selected", methods=["POST"])
 def download_selected():
 
     print(request.form)
-    
 
     selected = request.form.getlist("selected")
 
     memory_file = io.BytesIO()
 
-    with zipfile.ZipFile(
-        memory_file,
-        "w",
-        zipfile.ZIP_DEFLATED
-    ) as zf:
+    with zipfile.ZipFile(memory_file, "w", zipfile.ZIP_DEFLATED) as zf:
 
         for filename in selected:
 
@@ -1962,10 +1765,7 @@ def download_selected():
                 clip = camera.base_dir / f"clip_{ts}.mp4"
 
                 if clip.exists():
-                    zf.write(
-                        clip,
-                        arcname=clip.name
-                    )
+                    zf.write(clip, arcname=clip.name)
 
     memory_file.seek(0)
 
@@ -1976,18 +1776,15 @@ def download_selected():
         mimetype="application/zip",
         as_attachment=True,
         download_name=f"selected_{stamp}.zip",
-    ) 
+    )
+
 
 @app.route("/download-all")
 def download_all():
 
     memory_file = io.BytesIO()
 
-    with zipfile.ZipFile(
-        memory_file,
-        "w",
-        zipfile.ZIP_DEFLATED
-    ) as zf:
+    with zipfile.ZipFile(memory_file, "w", zipfile.ZIP_DEFLATED) as zf:
 
         for f in build_media():
             zf.write(f, arcname=f.name)
@@ -1997,39 +1794,29 @@ def download_all():
     return send_file(
         memory_file,
         as_attachment=True,
-        download_name=(
-            f"wildlife_{datetime.now():%Y%m%d_%H%M%S}.zip"
-        ),
+        download_name=(f"wildlife_{datetime.now():%Y%m%d_%H%M%S}.zip"),
         mimetype="application/zip",
-    )   
+    )
+
 
 @app.route("/api/status")
 def api_status():
-    
+
     images = len(list(camera.base_dir.glob("*.jpg")))
-    
+
     videos = len(list(camera.base_dir.glob("*.mp4")))
-    
-    media_size = sum(
-    
-            f.stat().st_size
-    
-            for f in camera.base_dir.glob("*")
-    
-            if f.is_file()
-    
-    )
+
+    media_size = sum(f.stat().st_size for f in camera.base_dir.glob("*") if f.is_file())
 
     latest_dt, latest_type = newest_media()
-   
-    
+
     disk = shutil.disk_usage(camera.base_dir)
 
     status = {
         "boot": _boot,
         "recording": camera._recording,
         "camera_online": True,
-        "camera_name": 'Feeder',
+        "camera_name": "Feeder",
         "motion_enabled": camera._motion_enabled,
         "motion_triggers": camera.motion_triggers,
         "motion_area": camera.motion_area,
@@ -2037,7 +1824,9 @@ def api_status():
         "motion_cooldown": camera.motion_cooldown,
         "last_motion": camera.last_motion,
         "last_still": camera.last_still if camera.last_still else None,
-        "last_motion_image": camera.last_motion_image if camera.last_motion_image else None,
+        "last_motion_image": (
+            camera.last_motion_image if camera.last_motion_image else None
+        ),
         "last_clip": camera.last_clip if camera.last_clip else None,
         "image_count": images,
         "video_count": videos,
@@ -2046,16 +1835,16 @@ def api_status():
         "last_activity": friendly_age(latest_dt),
         "orientation": camera.orientation,
         "last_actvity_type": latest_type,
-        
     }
-   
+
     for key, value in status.items():
         print(f"{key}: {type(value)}")
         if isinstance(value, dict):
             for k, v in value.items():
                 print(f"    {k}: {type(v)}")
-   
+
     return jsonify(status)
+
 
 @app.route("/snapshot.jpg")
 def snapshot():
@@ -2064,8 +1853,6 @@ def snapshot():
             return ("No frame available", 503)
 
         frame = camera._preview_frame.copy()
-
-    
 
     cv2.putText(
         frame,
@@ -2077,21 +1864,12 @@ def snapshot():
         2,
     )
 
-
-
-
-
-
-    
     ok, jpeg = cv2.imencode(".jpg", frame)
 
     if not ok:
         return ("JPEG encode failed", 500)
     print("FRAMECOUNT", camera._frame_counter)
-    return Response(
-        jpeg.tobytes(),
-        mimetype="image/jpeg"
-    )
+    return Response(jpeg.tobytes(), mimetype="image/jpeg")
 
 
 @app.route("/media/latest/still")
@@ -2100,10 +1878,7 @@ def latest_still():
     if camera.last_still is None:
         abort(404)
 
-    return send_from_directory(
-        camera.base_dir,
-        camera.last_still
-    )
+    return send_from_directory(camera.base_dir, camera.last_still)
 
 
 @app.route("/media/latest/motion")
@@ -2112,10 +1887,7 @@ def latest_motion():
     if camera.last_motion_image is None:
         abort(404)
 
-    return send_from_directory(
-        camera.base_dir,
-        camera.last_motion_image
-    )
+    return send_from_directory(camera.base_dir, camera.last_motion_image)
 
 
 @app.route("/media/")
@@ -2132,6 +1904,7 @@ def media_index():
     html.append("</ul>")
     return "".join(html)
 
+
 @app.route("/settings", methods=["GET", "POST"])
 def settings():
 
@@ -2139,10 +1912,8 @@ def settings():
         camera.update_settings(request.form)
         return redirect(url_for("settings"))
 
-    return render_template(
-        "settings.html",
-        settings=camera.get_camera_settings()
-    )
+    return render_template("settings.html", settings=camera.get_camera_settings())
+
 
 @app.route("/camera-info")
 def camera_info():
@@ -2153,15 +1924,17 @@ def camera_info():
         "camera_info.html",
         controls=camera.picam2.camera_controls,
         metadata=metadata,
-    )  
+    )
+
 
 @app.route("/greenhouse-profile", methods=["POST"])
 def greenhouse_profile():
 
     camera.greenhouse_profile()
 
-    return redirect(url_for("settings"))      
-    
+    return redirect(url_for("settings"))
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "8000"))
     app.run(host="0.0.0.0", port=port, threaded=True)
