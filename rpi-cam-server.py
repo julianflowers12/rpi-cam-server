@@ -15,6 +15,7 @@ import uuid
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
 import json
+import argparse
 
 VERSION = "1.0"
 
@@ -208,25 +209,32 @@ class CameraManager:
       - Optional motion detection that triggers clips
     """
 
-    def __init__(self, base_dir=None):
+    def __init__(self, base_dir=None, server_profile="full"):
+        self.server_profile = server_profile
         self.preview_clients = 0
         self._frame_counter = 0
-        self.picam2 = Picamera2()
+        self.picam2 = None
+        self.video_config = None
         self.orientation = 0
         self.motion_triggers = 0
         self._mjpeg_counter = 0
-        self.video_config = self.picam2.create_video_configuration(
-            main={
-                "size": (1280, 720),  # recording stream
-            },
-            lores={
-                "size": (320, 240),  # preview stream
-                "format": "YUV420",
-            },
-        )
 
-        self.picam2.configure(self.video_config)
-        print(self.video_config, flush=True)
+        if self.server_profile == "full":
+            self.picam2 = Picamera2()
+            
+            self.video_config = self.picam2.create_video_configuration(
+                main={
+                    "size": (1280, 720),  # recording stream
+                },
+                lores={
+                    "size": (320, 240),  # preview stream
+                    "format": "YUV420",
+                },
+            )
+
+            self.picam2.configure(self.video_config)
+            print(self.video_config, flush=True)
+        
         if base_dir is None:
 
             base_dir = Path(__file__).resolve().parent / "media"
@@ -247,6 +255,7 @@ class CameraManager:
         self._preview_running = False
 
         self._record_lock = threading.Lock()
+        self._lite_camera_lock = threading.Lock()
 
         self._recording = False
         self.last_clip = None
@@ -317,18 +326,19 @@ class CameraManager:
         if clips:
             self.last_clip = str(clips[0].name)
 
-        self.apply_camera_settings()
-
-        self.picam2.start()
-
-        self.start_preview()
-
-        if self.preview_enabled:
-
-            self.start_preview()
-
-        self.encoder = H264Encoder(bitrate=5_000_000)
-
+        self.encoder = None
+        
+        if self.server_profile == "full":
+        
+            self.apply_camera_settings()
+        
+            self.picam2.start()
+        
+            if self.preview_enabled:
+                self.start_preview()
+        
+            self.encoder = H264Encoder(bitrate=5_000_000)
+            
     def get_camera_settings(self):
         return {
             "motion_area": self.motion_area,
@@ -663,7 +673,11 @@ class CameraManager:
 
     # ---------- Stills (from preview, no pipeline stop) ----------
 
-    def capture_still(self) -> Path:
+    def capture_still(self) -> Path:  
+
+        if self.server_profile == "lite":
+            return self._capture_still_lite()
+            
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         path = self.base_dir / f"still_{ts}.jpg"
 
@@ -694,6 +708,143 @@ class CameraManager:
 
         except Exception as e:
             raise RuntimeError(f"Unable to capture still frame: {e}")
+
+
+    def _capture_still_lite(self) -> Path:
+
+        with self._lite_camera_lock:
+
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            path = self.base_dir / f"still_{ts}.jpg"
+
+            picam2 = None
+
+            try:
+                picam2 = Picamera2()
+
+                config = picam2.create_still_configuration(
+                    main={
+                        "size": (1296, 972),
+                    }
+                )
+
+                picam2.configure(config)
+                picam2.start()
+
+                # Allow exposure and white balance to settle
+                time.sleep(2)
+
+                frame = picam2.capture_array("main")
+
+                # Match the normal capture path
+                frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+
+                if self.orientation == 90:
+                    frame = cv2.rotate(
+                        frame,
+                        cv2.ROTATE_90_CLOCKWISE
+                    )
+
+                elif self.orientation == 180:
+                    frame = cv2.rotate(
+                        frame,
+                        cv2.ROTATE_180
+                    )
+
+                elif self.orientation == 270:
+                    frame = cv2.rotate(
+                        frame,
+                        cv2.ROTATE_90_COUNTERCLOCKWISE
+                    )
+
+                save_image(path, frame)
+
+                self.last_still = path.name
+
+                return path
+
+            except Exception as e:
+                raise RuntimeError(
+                    f"Unable to capture lite still frame: {e}"
+                )
+
+            finally:
+                if picam2 is not None:
+                    try:
+                        picam2.stop()
+                    except Exception:
+                        pass
+
+                    try:
+                        picam2.close()
+                    except Exception:
+                        pass
+
+                    # Give libcamera time to release the OV5647
+                    time.sleep(0.5)   
+
+    def capture_preview_lite(self):
+
+         with self._lite_camera_lock:
+
+             picam2 = None
+
+             try:
+                 picam2 = Picamera2()
+
+                 config = picam2.create_still_configuration(
+                     main={
+                         "size": (320, 240),
+                         "format": "RGB888",
+                     }
+                 )
+
+                 picam2.configure(config)
+                 picam2.start()
+
+                 # Allow exposure/white balance to settle
+                 time.sleep(1)
+
+                 frame = picam2.capture_array("main")
+
+                 if self.orientation == 90:
+                     frame = cv2.rotate(
+                         frame,
+                         cv2.ROTATE_90_CLOCKWISE
+                     )
+
+                 elif self.orientation == 180:
+                     frame = cv2.rotate(
+                         frame,
+                         cv2.ROTATE_180
+                     )
+
+                 elif self.orientation == 270:
+                     frame = cv2.rotate(
+                         frame,
+                         cv2.ROTATE_90_COUNTERCLOCKWISE
+                     )
+
+                 return frame
+
+             except Exception as e:
+                 raise RuntimeError(
+                     f"Unable to capture lite preview: {e}"
+                 )
+
+             finally:
+                 if picam2 is not None:
+                     try:
+                         picam2.stop()
+                     except Exception:
+                         pass
+
+                     try:
+                         picam2.close()
+                     except Exception:
+                         pass
+
+                     time.sleep(0.5)                     
 
     # ---------- 30 s clip ----------
 
@@ -898,16 +1049,31 @@ class CameraManager:
                 time.sleep(1)
 
 
-# ---------------- Flask app ----------------
+# --------- Flask app -----------------
 
 app = Flask(__name__)
-camera = CameraManager()
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument(
+    "--profile",
+    choices=["full", "lite"],
+    default="full",
+    help="Server resource profile",
+)
+
+args = parser.parse_args()
+
+print(f"Starting rpi-cam-server profile={args.profile}")
+
+camera = CameraManager(server_profile=args.profile)
+
 _boot.update({"step": "running", "percent": 100, "ready": True})
 _boot_ready_evt.set()
 
+
 from flask import Flask, request, url_for
 
-app = Flask(__name__)
 
 GALLERY_FILTERS = (
     "date",
@@ -1240,13 +1406,59 @@ def api_info():
 
 @app.route("/preview")
 def preview():
-    return render_template("preview.html", title="Live Preview")
+    return render_template("preview.html", title="Live Preview", profile=camera.server_profile,)
 
 
 @app.route("/api/capture_still", methods=["POST"])
 def api_capture_still():
     path = camera.capture_still()
     return jsonify({"status": "ok", "file": path.name})
+
+
+@app.route("/snapshot.jpg")
+def snapshot():
+
+    if camera.server_profile == "lite":
+
+        try:
+            frame = camera.capture_preview_lite()
+
+        except Exception as e:
+            print(f"Lite preview error: {e}", flush=True)
+            return ("Unable to capture preview", 500)
+
+    else:
+
+        with camera._lock:
+            if camera._preview_frame is None:
+                return ("No frame available", 503)
+
+            frame = camera._preview_frame.copy()
+
+    cv2.putText(
+        frame,
+        datetime.now().strftime("%H:%M:%S"),
+        (10, 30),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        1,
+        (0, 255, 0),
+        2,
+    )
+
+    ok, jpeg = cv2.imencode(
+        ".jpg",
+        frame,
+        [int(cv2.IMWRITE_JPEG_QUALITY), 80]
+    )
+
+    if not ok:
+        return ("JPEG encode failed", 500)
+
+    return Response(
+        jpeg.tobytes(),
+        mimetype="image/jpeg"
+    )
+
 
 
 @app.route("/stream.mjpg")
@@ -1846,13 +2058,25 @@ def api_status():
     return jsonify(status)
 
 
-@app.route("/snapshot.jpg")
-def snapshot():
-    with camera._lock:
-        if camera._preview_frame is None:
-            return ("No frame available", 503)
 
-        frame = camera._preview_frame.copy()
+def snapshot():
+
+    if camera.server_profile == "lite":
+
+        try:
+            frame = camera.capture_preview_lite()
+
+        except Exception as e:
+            print(f"Lite preview error: {e}", flush=True)
+            return ("Unable to capture preview", 500)
+
+    else:
+
+        with camera._lock:
+            if camera._preview_frame is None:
+                return ("No frame available", 503)
+
+            frame = camera._preview_frame.copy()
 
     cv2.putText(
         frame,

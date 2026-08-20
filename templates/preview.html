@@ -8,10 +8,25 @@
 
     <div class="preview-panel">
 
+        {% if profile == "full" %}
+        
         <img
             class="preview-image"
             src="/stream.mjpg"
             alt="Live Preview">
+        
+        {% else %}
+        
+        <img
+            id="lite-preview"
+            class="preview-image"
+            alt="Preview">
+        
+        <button type="button" onclick="refreshLitePreview()">
+            Refresh Preview
+        </button>
+        
+        {% endif %}
 
     </div>
 
@@ -203,6 +218,18 @@ function updateOrientationButton(){
     document.getElementById("orientation-button").innerText =
         "🧭 Orientation: " + orientation + "°";
 
+}
+
+function refreshLitePreview() {
+
+    const image = document.getElementById("lite-preview");
+
+    if (!image) {
+        return;
+    }
+
+    image.src =
+        "/snapshot.jpg?t=" + Date.now();
 }
 
 async function updatePreviewStatus(){
