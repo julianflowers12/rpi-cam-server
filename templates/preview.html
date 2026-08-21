@@ -36,6 +36,9 @@
             📷 Capture Still
         </button>
 
+        {% if profile == "full" %}
+ 
+
         <button onclick="recordClip()">
             🎥 Record Clip
         </button>
@@ -46,6 +49,7 @@
             🚨 Motion
         </button>
 
+        {% endif %}
         
         <button id="orientation-button"
                 onclick="rotateOrientation()">
@@ -261,10 +265,15 @@ async function updatePreviewStatus(){
         document.getElementById("disk-free").textContent =
             data.disk_free_gb.toFixed(1) + " GB";    
 
-        document.getElementById("motion-button").textContent =
-            data.motion_enabled ?
-                "🚨 Disable Motion" :
-                "🚨 Enable Motion";
+        const motionButton =
+            document.getElementById("motion-button");
+        
+        if (motionButton) {
+            motionButton.textContent =
+                data.motion_enabled ?
+                    "🚨 Disable Motion" :
+                    "🚨 Enable Motion";
+        }
 
 		document.getElementById("orientation").value =
 		    status.orientation;
