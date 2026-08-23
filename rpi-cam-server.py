@@ -16,6 +16,7 @@ from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
 import json
 import argparse
+import logging
 
 VERSION = "1.0"
 
@@ -711,7 +712,12 @@ class CameraManager:
 
 
     def _capture_still_lite(self) -> Path:
-
+        
+        if self._motion_enabled:
+                raise RuntimeError(
+                    "Still capture unavailable while lite motion detection is enabled"
+                )
+    
         with self._lite_camera_lock:
 
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -785,66 +791,71 @@ class CameraManager:
 
     def capture_preview_lite(self):
 
-         with self._lite_camera_lock:
+        if self._motion_enabled:
+            raise RuntimeError(
+                "Preview unavailable while lite motion detection is enabled"
+            )
 
-             picam2 = None
+        with self._lite_camera_lock:
 
-             try:
-                 picam2 = Picamera2()
+            picam2 = None
 
-                 config = picam2.create_still_configuration(
-                     main={
-                         "size": (320, 240),
-                         "format": "RGB888",
-                     }
-                 )
+            try:
+                picam2 = Picamera2()
 
-                 picam2.configure(config)
-                 picam2.start()
+                config = picam2.create_still_configuration(
+                    main={
+                        "size": (320, 240),
+                        "format": "RGB888",
+                    }
+                )
+
+                picam2.configure(config)
+                picam2.start()
 
                  # Allow exposure/white balance to settle
-                 time.sleep(1)
+                time.sleep(1)
 
-                 frame = picam2.capture_array("main")
+                frame = picam2.capture_array("main")
 
-                 if self.orientation == 90:
-                     frame = cv2.rotate(
-                         frame,
-                         cv2.ROTATE_90_CLOCKWISE
-                     )
+                if self.orientation == 90:
+                    frame = cv2.rotate(
+                        frame,
+                        cv2.ROTATE_90_CLOCKWISE
+                    )
 
-                 elif self.orientation == 180:
-                     frame = cv2.rotate(
-                         frame,
-                         cv2.ROTATE_180
-                     )
+                elif self.orientation == 180:
+                    frame = cv2.rotate(
+                        frame,
+                        cv2.ROTATE_180
+                    )
 
-                 elif self.orientation == 270:
-                     frame = cv2.rotate(
-                         frame,
-                         cv2.ROTATE_90_COUNTERCLOCKWISE
-                     )
+                elif self.orientation == 270:
+                    frame = cv2.rotate(
+                        frame,
+                        cv2.ROTATE_90_COUNTERCLOCKWISE
+                    )
 
-                 return frame
+                return frame
 
-             except Exception as e:
-                 raise RuntimeError(
-                     f"Unable to capture lite preview: {e}"
-                 )
+            except Exception as e:
+                raise RuntimeError(
+                    f"Unable to capture lite preview: {e}"
+                )
 
-             finally:
-                 if picam2 is not None:
-                     try:
-                         picam2.stop()
-                     except Exception:
-                         pass
+            finally:
+                if picam2 is not None:
+                    try:
+                        picam2.stop()
+                    except Exception:
+                        pass
 
-                     try:
-                         picam2.close()
-                     except Exception:
-                         pass
+                    try:
+                        picam2.close()
+                    except Exception:
+                        pass
 
-                     time.sleep(0.5)                     
+                    time.sleep(0.5)                     
 
     # ---------- 30 s clip ----------
 
@@ -932,10 +943,224 @@ class CameraManager:
         self._motion_enabled = True
         if self._motion_thread is None or not self._motion_thread.is_alive():
             self._motion_stop_evt.clear()
+            if self.server_profile == "lite":
+                target = self._motion_loop_lite
+            else:
+                target = self._motion_loop
+                    
             self._motion_thread = threading.Thread(
-                target=self._motion_loop, daemon=True
+                target=target, daemon=True
             )
             self._motion_thread.start()
+
+    def _lite_capture_highres(self, picam2, path):
+            
+        t0 = time.time()
+    
+        print("Lite highres capture starting", flush=True)
+    
+        picam2.stop()
+    
+        config = picam2.create_still_configuration(
+            main={
+                "size": (1296, 972),
+            }
+        )
+    
+        picam2.configure(config)
+        picam2.start()
+    
+        # Short settling period
+        time.sleep(0)
+    
+        picam2.capture_file(str(path))
+    
+        print(
+            f"Lite highres capture completed "
+            f"in {time.time() - t0:.2f}s",
+            flush=True
+        )
+    
+        # Return camera to motion configuration
+    
+        picam2.stop()
+    
+        config = picam2.create_still_configuration(
+            main={
+                "size": (320, 240),
+                "format": "RGB888",
+            }
+        )
+    
+        picam2.configure(config)
+        picam2.start()
+    
+        # Reset exposure after reconfiguration
+        time.sleep(1)        
+
+    def _motion_loop_lite(self):
+
+        print("Lite motion enabled", flush=True)
+
+        prev_gray = None
+        motion_frame_count = 0
+        cool_down_until = 0
+
+        picam2 = None
+
+        try:
+            with self._lite_camera_lock:
+
+                picam2 = Picamera2()
+
+                config = picam2.create_video_configuration(
+                    main={
+                        "size": (320, 240),
+                        "format": "RGB888",
+                    },
+                    lores={
+                        "size": (320, 240),
+                        "format": "YUV420",
+                    },
+                )
+
+                picam2.configure(config)
+                picam2.start()
+
+                # Let exposure / AWB settle
+                time.sleep(2)
+
+                while not self._motion_stop_evt.is_set():
+
+                    frame = picam2.capture_array("main")
+                    
+
+                    gray = cv2.cvtColor(
+                        frame,
+                        cv2.COLOR_RGB2GRAY
+                    )
+
+                    gray = cv2.GaussianBlur(
+                        gray,
+                        (21, 21),
+                        0
+                    )
+
+                    if prev_gray is None:
+                        prev_gray = gray
+                        self._motion_stop_evt.wait(1.0)
+                        continue
+
+                    diff = cv2.absdiff(prev_gray, gray)
+
+                    thresh = cv2.threshold(
+                        diff,
+                        25,
+                        255,
+                        cv2.THRESH_BINARY
+                    )[1]
+
+                    thresh = cv2.dilate(
+                        thresh,
+                        None,
+                        iterations=2
+                    )
+
+                    contours, _ = cv2.findContours(
+                        thresh,
+                        cv2.RETR_EXTERNAL,
+                        cv2.CHAIN_APPROX_SIMPLE
+                    )
+
+                    largest_area = max(
+                        (cv2.contourArea(c) for c in contours),
+                        default=0
+                    )
+
+                    print(
+                        f"Lite motion detected area={largest_area:.0f} ",
+                        flush=True
+                    )
+
+                    motion_detected = (
+                        largest_area > self.motion_area
+                    )
+
+                    if motion_detected:
+                        motion_frame_count += 1
+                    else:
+                        motion_frame_count = 0
+
+                    now = time.time()
+
+                    if (
+                        motion_frame_count >= 1
+                        and now > cool_down_until
+                    ):
+
+                        print(
+                            f"Lite motion detected area={largest_area:.0f}",
+                            flush=True
+                        )
+
+                        ts = datetime.now().strftime(
+                            "%Y%m%d_%H%M%S"
+                        )
+
+                        motion_path = (
+                            self.base_dir /
+                            f"motion_{ts}.jpg"
+                        )
+
+                        self._lite_capture_highres(
+                            picam2,
+                            motion_path
+                        )
+
+
+                        self.last_motion_image = motion_path.name
+                        self.last_motion = datetime.now().strftime(
+                            "%Y-%m-%d %H:%M:%S"
+                        )
+
+                        self.motion_triggers += 1
+
+                        cool_down_until = (
+                            now + self.motion_cooldown
+                        )
+
+                        motion_frame_count = 0
+
+                    prev_gray = None
+
+                    self._motion_stop_evt.wait(1)
+                    continue
+
+                    # Low sampling rate is intentional on Zero
+                    self._motion_stop_evt.wait(1.0)
+
+        except Exception as e:
+            print(
+                f"Lite motion error: {e}",
+                flush=True
+            )
+
+        finally:
+
+            if picam2 is not None:
+
+                try:
+                    picam2.stop()
+                except Exception:
+                    pass
+
+                try:
+                    picam2.close()
+                except Exception:
+                    pass
+
+            print("Lite motion stopped", flush=True)
+             
 
     def disable_motion(self):
         self._motion_enabled = False
@@ -1052,6 +1277,8 @@ class CameraManager:
 # --------- Flask app -----------------
 
 app = Flask(__name__)
+
+logging.getLogger("werkzeug").setLevel(logging.ERROR)
 
 parser = argparse.ArgumentParser()
 
