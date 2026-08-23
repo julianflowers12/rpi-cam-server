@@ -954,7 +954,7 @@ class CameraManager:
             self._motion_thread.start()
 
     def _lite_capture_highres(self, picam2, path):
-            
+        
         t0 = time.time()
     
         print("Lite highres capture starting", flush=True)
@@ -970,9 +970,6 @@ class CameraManager:
         picam2.configure(config)
         picam2.start()
     
-        # Short settling period
-        time.sleep(0)
-    
         picam2.capture_file(str(path))
     
         print(
@@ -980,8 +977,6 @@ class CameraManager:
             f"in {time.time() - t0:.2f}s",
             flush=True
         )
-    
-        # Return camera to motion configuration
     
         picam2.stop()
     
@@ -995,8 +990,10 @@ class CameraManager:
         picam2.configure(config)
         picam2.start()
     
-        # Reset exposure after reconfiguration
-        time.sleep(1)        
+        # Let the motion stream settle
+        time.sleep(1)
+    
+        return path    
 
     def _motion_loop_lite(self):
 
@@ -2275,12 +2272,6 @@ def api_status():
         "orientation": camera.orientation,
         "last_actvity_type": latest_type,
     }
-
-    for key, value in status.items():
-        print(f"{key}: {type(value)}")
-        if isinstance(value, dict):
-            for k, v in value.items():
-                print(f"    {k}: {type(v)}")
 
     return jsonify(status)
 
