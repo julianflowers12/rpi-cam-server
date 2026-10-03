@@ -41,6 +41,8 @@ from picamera2.outputs import FfmpegOutput
 import cv2
 import numpy as np
 
+AI_EVENT_DIR = Path.home() / "wildlife"
+
 # ---------------- Boot status / progress ----------------
 from threading import Event
 
@@ -90,7 +92,16 @@ def save_image(image_path, frame):
 
 
 def format_timestamp(ts):
-    dt = datetime.strptime(ts, "%Y%m%d_%H%M%S")
+    try:
+        dt = datetime.strptime(
+            ts,
+            "%Y%m%d_%H%M%S_%f",
+        )
+    except ValueError:
+        dt = datetime.strptime(
+            ts,
+            "%Y%m%d_%H%M%S",
+        )
     return (dt.strftime("%d %b %Y"), dt.strftime("%H:%M:%S"))
 
 
@@ -1644,13 +1655,19 @@ def snapshot():
 
     if camera.server_profile == "lite":
 
-        try:
-            frame = camera.capture_preview_lite()
+        snapshot_file = (
+            AI_EVENT_DIR /
+            "snapshot.jpg"
+        )
 
-        except Exception as e:
-            print(f"Lite preview error: {e}", flush=True)
-            return ("Unable to capture preview", 500)
+        if not snapshot_file.exists():
+            return ("No frame available", 503)
 
+        return send_from_directory(
+            AI_EVENT_DIR,
+            "snapshot.jpg",
+        )
+    
     else:
 
         with camera._lock:
@@ -1826,6 +1843,77 @@ def build_events():
             }
         )
 
+    # AI camera wildlife events
+
+    for json_file in AI_EVENT_DIR.glob("*.json"):
+
+        try:
+            with open(json_file) as f:
+                data = json.load(f)
+
+            event_id = data.get(
+                "event_id",
+                json_file.stem,
+            )
+        
+            image = AI_EVENT_DIR / data["image"]
+
+            # Prefer the final MP4 belonging to this event.
+            clip = (
+                AI_EVENT_DIR /
+                "video" /
+                f"{event_id}.mp4"
+            )
+            
+                        # No playable MP4 for this event yet.
+            if not clip.exists():
+                clip = None
+
+            if not image.exists():
+                app.logger.warning(
+                    "AI event image missing: %s",
+                    image,
+                )
+                continue
+
+            fav = (
+                AI_EVENT_DIR /
+                f"{event_id}.fav"
+            ).exists()
+
+            events.append(
+                {
+                    "type": "ai",
+                    "timestamp": data["timestamp"],
+                    "image": image,
+                    "clip": (
+                        clip
+                        if clip and clip.exists()
+                        else None
+                    ),
+                    "sort": image.stat().st_mtime,
+                    "favourite": fav,
+                    "ai_class": data.get(
+                        "class",
+                        "wildlife",
+                    ),
+                    "confidence": data.get(
+                        "confidence"
+                    ),
+                    "bounding_box": data.get(
+                        "bounding_box"
+                    ),
+                    "metadata": data,
+                }
+            )
+
+        except Exception as e:
+            app.logger.warning(
+                "Could not read AI event %s: %s",
+                json_file,
+                e,
+            )    
+
     events.sort(key=lambda e: e["sort"], reverse=True)
 
     return events
@@ -1929,6 +2017,37 @@ def gallery():
                 else None
             )
 
+        elif event["type"] == "ai":
+
+            confidence = event.get("confidence")
+
+            if confidence is not None:
+                event["label"] = (
+                    f"🐦 AI {event['ai_class']} "
+                    f"({confidence:.0%})"
+                )
+            else:
+                event["label"] = (
+                    f"🐦 AI {event['ai_class']}"
+                )
+
+            image = event["image"]
+
+            event["thumb"] = (
+                f"/ai-media/{image.name}"
+            )
+            event["full"] = (
+                f"/ai-media/{image.name}"
+            )
+
+            clip = event.get("clip")
+
+            event["video"] = (
+                f"/ai-media/video/{clip.name}"
+                if clip
+                else None
+            )
+            
         else:
 
             event["label"] = "🎥 Video clip"
@@ -2085,6 +2204,14 @@ def api_motion():
 @app.route("/media/<path:filename>")
 def media_file(filename):
     return send_from_directory(camera.base_dir, filename)
+
+
+@app.route("/ai-media/<path:filename>")
+def ai_media_file(filename):
+    return send_from_directory(
+        AI_EVENT_DIR,
+        filename,
+    )
 
 
 @app.route("/delete/<filename>", methods=["POST"])
